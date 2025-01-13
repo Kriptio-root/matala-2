@@ -5,7 +5,8 @@ import 'reflect-metadata'
 import * as crypto from 'crypto'
 
 import type {
-  TConfiguration, TMessage,
+  TConfiguration,
+  TMessage,
   TMessageConstants
 } from '../types'
 

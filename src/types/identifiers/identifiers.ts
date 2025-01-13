@@ -6,7 +6,7 @@ const SERVICE_IDENTIFIER = {
   RuntimeInfo: Symbol.for('RuntimeInfo'),
   IPinoLogger: Symbol.for('IPinoLogger'),
   PinoPrettyConfiguration: Symbol.for('PinoPrettyConfiguration'),
-  ILoggerFormatingConstants: Symbol.for('ILoggerFormatingConstants'),
+  TLoggerFormatingConstants: Symbol.for('TLoggerFormatingConstants'),
   Server: Symbol.for('Server'),
   Client: Symbol.for('Client'),
   ErrorFactory: Symbol.for('ErrorFactory'),
@@ -16,5 +16,6 @@ const SERVICE_IDENTIFIER = {
   EventMessages: Symbol.for('EVENT_MESSAGES'),
   DebugInfo: Symbol.for('DebugInfo'),
   TConfiguration: Symbol.for('TConfiguration'),
+  IPasswordUtil: Symbol.for('IPasswordUtil'),
 }
 export { SERVICE_IDENTIFIER }

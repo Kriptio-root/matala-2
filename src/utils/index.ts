@@ -1,1 +1,5 @@
 export { toBufferEncoding } from './to-buffer-encoding-validator.util'
+export { ErrorWithoutAdditionalHandling } from './errors'
+export { ErrorInstanceTypescriptAdapter } from './errors'
+export { PasswordUtil } from './password.util'
+export { IntegrityChecker } from './integrity-checker.util'

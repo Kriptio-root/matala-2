@@ -7,8 +7,8 @@ import { configuration } from './configuration'
 
 import type {
   TConfiguration,
-  TMessageConstants
-
+  TLoggerFormatingConstants,
+  TMessageConstants,
 } from '../types'
 
 import {
@@ -17,17 +17,29 @@ import {
   createErrors,
   createDebugInfo,
   createRuntimeInfo,
-  pinoPrettyConfiguration
+  pinoPrettyConfiguration,
+  loggerFormatingConstants,
+  EXIT_CODES,
+  EVENT_MESSAGES,
+  SIGNALS,
 } from '../types'
 
-import {
-  IPinoLogger
-
+import type {
+  IPinoLogger,
+  IErrorFactory,
+  IPasswordUtil,
+  IIntegrityChecker,
+  IErrorWithoutAdditionalHandling,
+  IValidationUtil,
 } from '../interfaces'
 
 
 import {
-
+  ErrorInstanceTypescriptAdapter,
+  ErrorWithoutAdditionalHandling,,
+  IntegrityChecker,
+  PasswordUtil,
+  ValidationUtil
 } from '../utils'
 
 const container: Container = new Container()
@@ -53,11 +65,23 @@ container
   .toConstantValue(createRuntimeInfo(configuration))
 
 container
+  .bind<TLoggerFormatingConstants>(SERVICE_IDENTIFIER.TLoggerFormatingConstants)
+    .toConstantValue(loggerFormatingConstants)
+
+container
   .bind<LoggerOptions>(SERVICE_IDENTIFIER.PinoPrettyConfiguration)
   .toConstantValue(pinoPrettyConfiguration)
 
 container
   .bind<IPinoLogger>(SERVICE_IDENTIFIER.IPinoLogger)
   .to(PinoLogger)
+
+container
+  .bind<IErrorFactory>(SERVICE_IDENTIFIER.ErrorFactory)
+  .toDynamicValue((): IErrorFactory => ({
+    create: (message: string, error: unknown): ErrorInstanceTypescriptAdapter =>
+      new ErrorInstanceTypescriptAdapter(message, error),
+  }),
+)
 
 export { container }

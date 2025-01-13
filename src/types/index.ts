@@ -13,10 +13,6 @@ export {
   pinoPrettyConfiguration,
 } from './logger'
 
-export type {
-  IPinoPrettyConfiguration,
-} from './logger'
-
 export {
   SIGNALS,
   EXIT_CODES,
@@ -29,4 +25,5 @@ export type { TConfiguration } from './configuration.type'
 export type { TMessage } from './message.type'
 export type { TMessageConstants } from './message-constants.type'
 export type { TInteractiveString } from './interactive-string.type'
-
+export type { TUserFromDb } from './user-from-db.type'
+export type { TUserData } from './user-data.type'
