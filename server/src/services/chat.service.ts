@@ -1,10 +1,13 @@
 // src/services/ChatService.ts
 import { injectable, inject } from 'inversify'
 import { Socket } from 'net'
-import { IChatService } from '../interfaces/IChatService'
-import { IUserService } from '../interfaces/IUserService'
-import { TYPES } from '../types/types'
-import { DatabaseService } from '../db/DatabaseService'
+import type {
+  IChatService,
+  IDatabaseService,
+  IPinoLogger,
+  IUserService,
+} from '../interfaces'
+import { SERVICE_IDENTIFIER } from '../types'
 
 @injectable()
 export class ChatService implements IChatService {
@@ -14,8 +17,12 @@ export class ChatService implements IChatService {
   private activeChats = new Map<string, Set<string>>()
 
   constructor(
-    @inject(TYPES.DatabaseService) private dbService: DatabaseService,
-    @inject(TYPES.IUserService) private userService: IUserService,
+    @inject(SERVICE_IDENTIFIER.IDatabaseService)
+    private dbService: IDatabaseService,
+    @inject(SERVICE_IDENTIFIER.IUserService)
+    private userService: IUserService,
+    @inject(SERVICE_IDENTIFIER.IPinoLogger)
+    private readonly logger: IPinoLogger,
   ) {}
 
   /**

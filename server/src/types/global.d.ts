@@ -5,8 +5,8 @@ declare global {
   }
   const console: Console
 }
-// namespace NodeJS {
-//   export interface ProcessEnv {
-//     DATABASE_URL: string;
-//   }
-// }
+namespace NodeJS {
+  export interface ProcessEnv {
+    DATABASE_URL: string;
+  }
+}

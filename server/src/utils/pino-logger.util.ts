@@ -10,7 +10,7 @@ import {
 } from '../types'
 
 @injectable()
-export class PinoLogger implements IPinoLogger {
+export class PinoLoggerUtil implements IPinoLogger {
   private readonly logger: pino.Logger
 
   public constructor() {

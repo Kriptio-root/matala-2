@@ -33,7 +33,7 @@ export class TcpServer {
 
   public start(): void {
     this.server.listen(this.port, () => {
-      this.logger.info(`TCP Server is listening on port ${this.port}`)
+      this.logger.info(`TCP Server is listening on port ${this.port.toString()}`)
     })
   }
 

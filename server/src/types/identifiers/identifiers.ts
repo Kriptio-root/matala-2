@@ -16,9 +16,9 @@ const SERVICE_IDENTIFIER = {
   EventMessages: Symbol.for('EVENT_MESSAGES'),
   DebugInfo: Symbol.for('DebugInfo'),
   TConfiguration: Symbol.for('TConfiguration'),
-  IPasswordUtil: Symbol.for('IPasswordUtil'),
   IChatService: Symbol.for('IChatService'),
   IUserService: Symbol.for('IUserService'),
   IDatabaseService: Symbol.for('IDatabaseService'),
+  IPrismaService: Symbol.for('IPrismaService'),
 }
 export { SERVICE_IDENTIFIER }

@@ -1,11 +1,6 @@
-export interface TUserFromDb {
+export type TUserFromDb = {
+  id: number
   nickname: string
-  id: string
-  firstName: string
-  lastName: string
-  passwordHash: string
-  salt: string
-  deletedAt: Date | null
-  updatedAt: Date
+  isOnline: boolean
   createdAt: Date
 }

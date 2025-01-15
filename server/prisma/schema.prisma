@@ -1,0 +1,54 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  // уникальное имя пользователя, служит для идентификации.
+  nickname  String   @unique
+  // флаг онлайн/офлайн.
+  isOnline  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Сессии (когда пользователь заходит, мы можем создавать Session).
+  sessions Session[] // связь "один-ко-многим"
+
+  // Сообщения, которые пользователь отправил
+  messagesSent Message[] @relation("SentMessages")
+
+  // Сообщения, которые пользователь получил
+  messagesReceived Message[] @relation("ReceivedMessages")
+}
+
+model Session {
+  id        Int      @id @default(autoincrement())
+  socketId  String? // хранит какой-то идентификатор сокета (можно GUID, можно string)
+  createdAt DateTime @default(now())
+
+  // Связь с User
+  nickname String
+  user     User   @relation(fields: [nickname], references: [nickname])
+}
+
+model Message {
+  id          Int      @id @default(autoincrement())
+  content     String
+  createdAt   DateTime @default(now())
+  isDelivered Boolean  @default(false)
+
+  // Кто отправил сообщение
+  fromUserId Int
+  fromUser   User @relation("SentMessages", fields: [fromUserId], references: [id])
+
+  // Кто получатель
+  toUserId Int
+  toUser   User @relation("ReceivedMessages", fields: [toUserId], references: [id])
+}

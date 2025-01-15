@@ -1,3 +1,3 @@
-export interface TMessageConstants {
+export type TMessageConstants = {
   [key: string]: string
 }

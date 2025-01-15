@@ -1,3 +1,3 @@
-export interface TExitCodes {
+export type TExitCodes = {
   [key: string]: number
 }

@@ -1,7 +1,8 @@
 import { Container } from 'inversify'
-import { LoggerOptions } from 'pino'
+import type { LoggerOptions } from 'pino'
+import { PrismaService } from '../services'
 
-import {PinoLogger} from '../utils/pino-logger'
+import { PinoLoggerUtil } from '../utils/pino-logger.util'
 
 import { configuration } from './configuration'
 
@@ -27,19 +28,13 @@ import {
 import type {
   IPinoLogger,
   IErrorFactory,
-  IPasswordUtil,
-  IIntegrityChecker,
   IErrorWithoutAdditionalHandling,
-  IValidationUtil,
+  IPrismaService,
 } from '../interfaces'
-
 
 import {
   ErrorInstanceTypescriptAdapter,
-  ErrorWithoutAdditionalHandling,,
-  IntegrityChecker,
-  PasswordUtil,
-  ValidationUtil
+  ErrorWithoutAdditionalHandling,
 } from '../utils'
 
 const container: Container = new Container()
@@ -47,6 +42,11 @@ const container: Container = new Container()
 container
   .bind<TConfiguration>(SERVICE_IDENTIFIER.TConfiguration)
   .toConstantValue(configuration)
+
+container
+  .bind<IPrismaService>(SERVICE_IDENTIFIER.IPrismaService)
+  .to(PrismaService)
+  .inSingletonScope()
 
 container
   .bind<TMessageConstants>(SERVICE_IDENTIFIER.Warnings)
@@ -74,11 +74,16 @@ container
 
 container
   .bind<IPinoLogger>(SERVICE_IDENTIFIER.IPinoLogger)
-  .to(PinoLogger)
+  .to(PinoLoggerUtil)
+
+container
+  .bind<IErrorWithoutAdditionalHandling>(SERVICE_IDENTIFIER.IErrorWithoutAdditionalHandling)
+  .to(ErrorWithoutAdditionalHandling)
 
 container
   .bind<IErrorFactory>(SERVICE_IDENTIFIER.ErrorFactory)
-  .toDynamicValue((): IErrorFactory => ({
+  .toDynamicValue(
+  (): IErrorFactory => ({
     create: (message: string, error: unknown): ErrorInstanceTypescriptAdapter =>
       new ErrorInstanceTypescriptAdapter(message, error),
   }),

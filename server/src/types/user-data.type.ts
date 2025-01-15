@@ -1,4 +1,4 @@
-export interface TUserData {
+export type TUserData = {
   nickname: string
   firstName: string
   lastName: string
