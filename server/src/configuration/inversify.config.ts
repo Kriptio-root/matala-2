@@ -1,13 +1,25 @@
 import { Container } from 'inversify'
 import type { LoggerOptions } from 'pino'
-import { PrismaService } from '../services'
 
-import { PinoLoggerUtil } from '../utils/pino-logger.util'
+import {
+  SessionRepository,
+  UserRepository,
+} from '../repositories'
+
+import { Pipeline, PrismaService } from '../services'
+
+import {
+  PinoLoggerUtil,
+  ErrorInstanceTypescriptAdapter,
+  ErrorWithoutAdditionalHandling,
+  OfflineMessageTransform,
+} from '../utils'
 
 import { configuration } from './configuration'
 
 import type {
   TConfiguration,
+  TExitCodes,
   TLoggerFormatingConstants,
   TMessageConstants,
 } from '../types'
@@ -30,12 +42,11 @@ import type {
   IErrorFactory,
   IErrorWithoutAdditionalHandling,
   IPrismaService,
+  IUserRepository,
+  ISessionRepository,
+  IPipeline,
+  IOfflineMessageTransform,
 } from '../interfaces'
-
-import {
-  ErrorInstanceTypescriptAdapter,
-  ErrorWithoutAdditionalHandling,
-} from '../utils'
 
 const container: Container = new Container()
 
@@ -73,6 +84,18 @@ container
   .toConstantValue(pinoPrettyConfiguration)
 
 container
+  .bind<TExitCodes>(SERVICE_IDENTIFIER.EXIT_CODES)
+  .toConstantValue(EXIT_CODES)
+
+container
+  .bind<TMessageConstants>(SERVICE_IDENTIFIER.EVENT_MESSAGES)
+  .toConstantValue(EVENT_MESSAGES)
+
+container
+  .bind<TMessageConstants>(SERVICE_IDENTIFIER.SIGNALS)
+  .toConstantValue(SIGNALS)
+
+container
   .bind<IPinoLogger>(SERVICE_IDENTIFIER.IPinoLogger)
   .to(PinoLoggerUtil)
 
@@ -88,5 +111,23 @@ container
       new ErrorInstanceTypescriptAdapter(message, error),
   }),
 )
+
+container
+  .bind<IUserRepository>(SERVICE_IDENTIFIER.IUserRepository)
+  .to(UserRepository)
+  .inSingletonScope()
+
+container
+  .bind<ISessionRepository>(SERVICE_IDENTIFIER.ISessionRepository)
+  .to(SessionRepository)
+  .inSingletonScope()
+
+container
+  .bind<IPipeline>(SERVICE_IDENTIFIER.IPipeline)
+    .to(Pipeline)
+
+container
+  .bind<IOfflineMessageTransform>(SERVICE_IDENTIFIER.IOfflineMessageTransform)
+    .to(OfflineMessageTransform)
 
 export { container }

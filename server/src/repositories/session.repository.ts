@@ -12,7 +12,7 @@ import type { TUserFromDb } from '../types'
 import { SERVICE_IDENTIFIER } from '../types'
 
 @injectable()
-export class SessionService implements ISessionRepository {
+export class SessionRepository implements ISessionRepository {
   private readonly prismaClient: PrismaClient
 
   public constructor(

@@ -1,6 +1,6 @@
-import type { IMessageConstants } from '../message-constants.interface'
+import type { TMessageConstants } from '../message-constants.type'
 
-export const SIGNALS: IMessageConstants = {
+export const SIGNALS: TMessageConstants = {
   ERROR: 'error',
   CLOSE: 'close',
   REQUEST: 'request',

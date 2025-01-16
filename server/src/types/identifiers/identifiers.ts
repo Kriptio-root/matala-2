@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-
 const SERVICE_IDENTIFIER = {
   Warnings: Symbol.for('Warnings'),
   Errors: Symbol.for('Errors'),
@@ -11,7 +10,6 @@ const SERVICE_IDENTIFIER = {
   Client: Symbol.for('Client'),
   ErrorFactory: Symbol.for('ErrorFactory'),
   IErrorWithoutAdditionalHandling: Symbol.for('IErrorWithoutAdditionalHandling'),
-  SIGNALS: Symbol.for('SIGNALS'),
   TExitCodes: Symbol.for('TExitCodes'),
   EventMessages: Symbol.for('EVENT_MESSAGES'),
   DebugInfo: Symbol.for('DebugInfo'),
@@ -20,5 +18,12 @@ const SERVICE_IDENTIFIER = {
   IUserService: Symbol.for('IUserService'),
   IDatabaseService: Symbol.for('IDatabaseService'),
   IPrismaService: Symbol.for('IPrismaService'),
+  IUserRepository: Symbol.for('IUserRepository'),
+  ISessionRepository: Symbol.for('ISessionRepository'),
+  EVENT_MESSAGES: Symbol.for('EVENT_MESSAGES'),
+  EXIT_CODES: Symbol.for('EXIT_CODES'),
+  SIGNALS: Symbol.for('SIGNALS'),
+  IPipeline: Symbol.for('IPipeline'),
+  IOfflineMessageTransform: Symbol.for('IOfflineMessageTransform'),
 }
 export { SERVICE_IDENTIFIER }

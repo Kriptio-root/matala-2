@@ -8,7 +8,7 @@ import { promisify } from 'util'
 export class DatabaseService {
   private db: sqlite3.Database
 
-  constructor() {
+ public constructor() {
     const dbPath = path.join(__dirname, '../../chat.db')
     this.db = new sqlite3.Database(dbPath)
     this.initTables()
