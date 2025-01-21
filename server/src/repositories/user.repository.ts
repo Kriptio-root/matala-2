@@ -33,6 +33,18 @@ export class UserRepository implements IUserRepository {
     }
   }
 
+  public async findOnlineUsers(): Promise<TUserFromDb[] | null> {
+    try {
+      const onlineUsers: TUserFromDb[] | null = await this.prismaClient.user.findMany({
+        where: { isOnline: true },
+      })
+      return onlineUsers
+    } catch (error) {
+      console.log(error)
+      throw new Error('User not found')
+    }
+  }
+
   public async setUserOnline(nickname: string): Promise<void> {
     try {
     const user: TUserFromDb | null = await this.findUnique(nickname)
@@ -47,6 +59,18 @@ if (user) {
     } catch (error) {
         console.log(error)
       throw new Error('User not found')
+    }
+  }
+
+  public async setAllUsersOffline(): Promise<void> {
+    try {
+      await this.prismaClient.user.updateMany({
+        where: { isOnline: true },
+        data: { isOnline: false },
+      })
+    } catch (error) {
+        console.log(error)
+        throw new Error('Error setting all users offline')
     }
   }
 

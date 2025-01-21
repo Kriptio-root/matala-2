@@ -6,7 +6,7 @@ import type {
   IPinoLogger,
   IUserService,
 } from '../interfaces'
-import { SERVICE_IDENTIFIER } from '../types'
+import {SERVICE_IDENTIFIER, TUserFromDb} from '../types'
 
 /**
  * ChatService
@@ -59,6 +59,12 @@ export class ChatService implements IChatService {
       // Пример: $chats — вывести всех «активных» партнёров
       if (message === '$chats') {
         this.listActiveChats(clientName, socket)
+        return
+      }
+
+      // Пример: $chats — вывести всех онлайн-пользователей
+      if (message === '$list') {
+       await this.listOnlineUsers(socket)
         return
       }
 
@@ -195,6 +201,23 @@ export class ChatService implements IChatService {
       this.logger.info(`User ${targetName} is offline; message stored offline (not shown here).`)
       // Тут можно вызвать messageService.saveMessage({ from: clientName, to: targetName, text, ... })
     }
+  }
+
+  public async listOnlineUsers(socket: Socket): Promise<void> {
+    let onlineUsers: TUserFromDb[] | null = await this.userService.getOnlineUsers()
+    if (onlineUsers) {
+      socket.write('Online users:\n')
+  onlineUsers.forEach((user) => {
+    socket.write(` - ${user.nickname}\n`)
+  })
+    }
+  }
+
+  public checkSocketBinding(socket: Socket): boolean {
+    // Преобразуем значения Map (сокеты) в массив и ищем совпадение
+    return Array.from(this.onlineClients.values()).some(
+      (sock) => sock === socket
+    )
   }
 
   /**

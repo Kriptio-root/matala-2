@@ -22,7 +22,9 @@ import type {
   IChatController,
 } from '../interfaces'
 
-import { SERVICE_IDENTIFIER, TMessage, TUserFromDb } from '../types'
+import {
+  SERVICE_IDENTIFIER,
+} from '../types'
 
 @injectable()
 export class ChatController implements IChatController {
@@ -47,7 +49,9 @@ export class ChatController implements IChatController {
    */
   public handleConnection(socket: Socket): void {
     try {
-      socket.write('Введите ваш никнейм:\n')
+      if (!this.chatService.checkSocketBinding(socket)) {
+        socket.write('Enter your nickname:\n')
+      }
 
       socket.on('data', (data: Buffer) => {
         this.onSocketData(data, socket)
@@ -60,6 +64,14 @@ export class ChatController implements IChatController {
         this.onSocketEnd(this.getClientName())
           .catch((error: unknown) => {
             this.logger.error('Error in onSocketEnd:', error)
+          })
+      })
+
+      socket.on('close', () => {
+        // На случай, если 'end' не сработал
+        this.onSocketEnd(this.getClientName())
+          .catch((error: unknown) => {
+            this.logger.error('Error in onSocketClose:', error)
           })
       })
 
@@ -84,33 +96,42 @@ export class ChatController implements IChatController {
     data: Buffer,
     socket: Socket,
   ): Promise<void> {
-    const input = data.toString().trim()
-    const traceId = uuidv4()
+    try {
+      const input = data.toString().trim()
+      const traceId = uuidv4()
 
-    this.setClientName(input)
-    if (this.clientName) {
-      const user: TUserFromDb = await this.userService.getUserByName(this.clientName)
-      await this.chatService.addOnlineClient(this.clientName, socket)
-      socket.write(`Добро пожаловать, ${user.nickname}!\n`)
+      // 1. Если мы ещё НЕ знаем clientName => трактуем input как nickname
+      if (!this.clientName) {
+        // Ищем пользователя в БД
+        let user = await this.userService.getUserByName(input)
+        if (!user) {
+          user = await this.userService.createUser(input)
+        }
+        // Ставим isOnline
+        await this.chatService.addOnlineClient(user.nickname, socket)
 
-      const offlineMessages: TMessage[] = await this.messageService.getOfflineMessages(this.clientName)
-      if (offlineMessages.length > 0) {
-        socket.write(`У вас ${offlineMessages.length.toString()} непрочитанных сообщений:\n`)
-        await this.pipeline.pipelineOfflineMessages(offlineMessages, socket, traceId)
-        await this.messageService.markMessagesDelivered(this.clientName)
+        // Запоминаем локально
+        this.clientName = user.nickname
+
+        // Выдаём офлайн-сообщения
+        const offlineMessages = await this.messageService.getOfflineMessages(user.nickname)
+        if (offlineMessages.length > 0) {
+          socket.write(`У вас ${offlineMessages.length.toString()} непрочитанных сообщений:\n`)
+          await this.pipeline.pipelineOfflineMessages(offlineMessages, socket, traceId)
+          await this.messageService.markMessagesDelivered(user.nickname)
+        }
+        return
       }
-      this.logger.info({
-        traceId: traceId,
-        clientName: this.clientName,
-        input: input,
-      }, 'Incoming message')
+
+      // 2. Иначе (clientName уже есть) => это обычное сообщение/команда
+      this.logger.info({ traceId: traceId, clientName: this.clientName, input: input }, 'Incoming message')
       await this.chatService.handleIncomingMessage(this.clientName, input, socket)
-    }
-  else {
-  this.handleConnection(socket)
-  return
+    } catch (error: unknown) {
+      this.logger.error('Error in onSocketData:', error)
+      this.handleConnection(socket)
+      return
 }
-}
+  }
 
   private async onSocketEnd(clientName: string | null): Promise<void> {
     if (clientName) {

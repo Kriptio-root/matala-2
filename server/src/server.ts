@@ -29,10 +29,8 @@ export class TcpServer implements IServer {
   constructor(
     @inject(SERVICE_IDENTIFIER.TConfiguration)
     private readonly configuration: TConfiguration,
-
     @inject(SERVICE_IDENTIFIER.IChatController)
     private readonly chatController: IChatController,
-
     @inject(SERVICE_IDENTIFIER.IPinoLogger)
     private readonly logger: IPinoLogger,
   ) {
@@ -47,9 +45,14 @@ export class TcpServer implements IServer {
   }
 
   public start(): void {
-    this.server.listen(this.port, () => {
+    try {
+      this.server.listen(this.port, () => {
       this.logger.info(`TCP Server is listening on port ${this.port.toString()}`)
     })
+    } catch (error) {
+        this.logger.error('Cant start server: ', error)
+        throw new Error('Server is not listening')
+    }
   }
 
   public stop(): void {

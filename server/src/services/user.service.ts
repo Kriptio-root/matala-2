@@ -3,6 +3,7 @@ import { injectable, inject } from 'inversify'
 import type {
   IUserService,
   IUserRepository,
+  IPinoLogger,
 } from '../interfaces'
 import {
   SERVICE_IDENTIFIER,
@@ -14,18 +15,13 @@ export class UserService implements IUserService {
   constructor(
     @inject(SERVICE_IDENTIFIER.IUserRepository)
     private userRepository: IUserRepository,
+    @inject(SERVICE_IDENTIFIER.IPinoLogger)
+    private logger: IPinoLogger,
   ) {}
 
-  public async getUserByName(name: string): Promise<TUserFromDb> {
+  public async getUserByName(name: string): Promise<TUserFromDb | undefined> {
     try {
-    let existingUser: TUserFromDb | null = await this.userRepository.findUnique(name)
-    if (!existingUser) {
-      // Создаём нового
-     await this.createUser(name)
-    }
-      // Помечаем как онлайн
-      await this.setUserOnline(name)
-      existingUser = await this.userRepository.findUnique(name)
+    const existingUser: TUserFromDb | null = await this.userRepository.findUnique(name)
       if (!existingUser) {
         throw new Error('User not found')
       }
@@ -37,8 +33,14 @@ export class UserService implements IUserService {
   }
 
   public async createUser(name: string): Promise<TUserFromDb> {
-    const newUser: TUserFromDb = await this.userRepository.create(name)
-    return newUser
+    try {
+      const newUser: TUserFromDb = await this.userRepository.create(name)
+      this.logger.info('New user created:', newUser.nickname)
+      return newUser
+    } catch (error: unknown) {
+      this.logger.error('Error creating new user')
+      throw new Error('Error creating new user')
+    }
   }
 
   public async setUserOnline(name: string): Promise<void> {
@@ -47,5 +49,10 @@ export class UserService implements IUserService {
 
   public async setUserOffline(name: string): Promise<void> {
     await this.userRepository.setUserOnline(name)
+  }
+
+  public async getOnlineUsers(): Promise<TUserFromDb[] | null> {
+    const onlineUsers: TUserFromDb[] | null = await this.userRepository.findOnlineUsers()
+    return onlineUsers
   }
 }

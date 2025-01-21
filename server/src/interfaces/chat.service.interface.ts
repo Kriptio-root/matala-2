@@ -21,5 +21,7 @@ export interface IChatService {
 
   sendPrivateMessage(clientName: string, targetName: string, text: string): Promise<void>
 
+  checkSocketBinding(socket: Socket): boolean
+
   getHelp(socket: Socket): void
 }

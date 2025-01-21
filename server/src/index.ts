@@ -1,15 +1,21 @@
+// src/index.ts
 import 'reflect-metadata'
 import { container } from './configuration'
-import type { IServer } from './interfaces'
+import type { IServer, IUserRepository } from './interfaces'
 import { SERVICE_IDENTIFIER } from './types'
 
-// Точка входа
-function main() {
-  // Получаем TcpServer из контейнера
+async function main() {
+  // Получаем наш сервер из контейнера
   const server = container.get<IServer>(SERVICE_IDENTIFIER.IServer)
-  // Запускаем
+
+  // Получаем UserRepository (или UserService), где есть метод setAllUsersOffline()
+  const userRepository = container.get<IUserRepository>(SERVICE_IDENTIFIER.IUserRepository)
+
+  // Сбрасываем всех пользователей в офлайн
+  await userRepository.setAllUsersOffline()
+
+  // Теперь запускаем сервер
   server.start()
 }
 
-// Запуск
-main()
+void main()
