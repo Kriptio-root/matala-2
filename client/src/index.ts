@@ -1,57 +1,99 @@
-// client.ts
-import net from 'net'
-import { createInterface } from 'node:readline'
-import chalk from 'chalk'
+import type { IpcMainEvent } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+} from 'electron'
+import * as path from 'path'
+import * as net from 'net'
 
-// Настройки подключения к серверу
-const HOST = 'localhost' // или '127.0.0.1'
-const PORT = 3003
+let mainWindow: BrowserWindow | null = null
+let clientSocket: net.Socket | null = null
 
-// Создаем интерфейс для чтения из stdin и вывода в stdout
-const rl = createInterface({
-  input: process.stdin,
-  output: process.stdout,
-  terminal: true,
-})
+function createWindow(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    mainWindow = new BrowserWindow({
+      width: 800,
+      height: 600,
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false,
+      },
+    })
 
-// Создаем клиентский сокет
-const client = new net.Socket()
+    mainWindow
+      .loadFile(path.join(__dirname, './public/index.html'))
+      .then(() => {
+        mainWindow?.on('closed', () => {
+          mainWindow = null
+        })
+        resolve()
+      })
+      .catch((error: unknown) => {
+        reject(new Error(String(error)))
+      })
+  })
+}
 
-client.connect(PORT, HOST, () => {
-  console.log(
-    chalk.greenBright(`\n[✔] You was successfully connected to the server : ${HOST}:${PORT.toString()}\n`),
-  )
-  console.log(chalk.blue('> Enter message or command (command starts with $), type $help to get help:\n'))
-})
+function connectToServer(host: string, port: number): void {
+  clientSocket = new net.Socket()
 
-// Когда от сервера приходит сообщение — выводим его в консоль
-client.on('data', (data) => {
-  const message = data.toString()
-  // Выводим с разным цветом, в зависимости от содержания
-  if (message.startsWith('Error')) {
-    console.log(chalk.red(`\n[Server]: ${message}\n`))
-  } else if (message.startsWith('Welcome')) {
-    console.log(chalk.green(`\n[Server]: ${message}\n`))
+  clientSocket.connect(port, host, () => {
+    console.log(`Connected to ${host}:${port.toString()}`)
+    mainWindow?.webContents.send('system-message', `Connected to ${host}:${port.toString()}`)
+  })
+
+  clientSocket.on('data', (data) => {
+    const msg = data.toString()
+    mainWindow?.webContents.send('chat-message', msg)
+  })
+
+  clientSocket.on('close', () => {
+    mainWindow?.webContents.send('system-message', 'Connection closed by server')
+    clientSocket = null
+  })
+
+  clientSocket.on('error', (err) => {
+    mainWindow?.webContents.send('system-message', `Error: ${err.message}`)
+  })
+}
+
+function sendMessageToServer(text: string): void {
+  if (clientSocket) {
+    clientSocket.write(text)
   } else {
-    console.log(chalk.cyan(`\n[Server]: ${message}\n`))
+    mainWindow?.webContents.send('system-message', 'Not connected')
   }
-  // Повторная инструкция
-  console.log(chalk.blue('>'))
-})
+}
 
-// Если сервер закрыл соединение
-client.on('close', () => {
-  console.log(chalk.yellow('\n[!] Connection to server was closed.\n'))
-  process.exit(0)
-})
+//
+// 1) Ждём app.whenReady()
+// 2) Потом вызываем createWindow()
+// 3) Потом настраиваем IPC
+// 4) Если где-то ошибка -> catch
+//
+app
+  .whenReady()
+  .then(() => createWindow())
+  .then(() => {
+    // Когда окно создано, настраиваем IPC
+    ipcMain.on(
+      'connect-to-server',
+      (_event: IpcMainEvent, payload: { host: string; port: number }) => {
+        connectToServer(payload.host, payload.port)
+      },
+    )
 
-// Если произошла ошибка
-client.on('error', (err) => {
-  console.error(chalk.redBright(`\n[Connection error!]: ${err.message}`))
-  process.exit(1)
-})
+    ipcMain.on('send-message', (_event: IpcMainEvent, text: string) => {
+      sendMessageToServer(text)
+    })
+  })
+  .catch((err: unknown) => {
+    console.error('Error in main process:', err)
+  })
 
-// Читаем построчно с консоли и сразу отправляем на сервер
-rl.on('line', (line) => {
-  client.write(line)
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
 })

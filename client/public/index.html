@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Electron TCP Chat</title>
+    <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+<h1>Electron TCP Chat</h1>
+
+<div class="connect-row">
+    <input type="text" id="host" placeholder="Host" value="localhost" />
+    <input type="number" id="port" placeholder="Port" value="3003" />
+    <button id="connectBtn">Connect</button>
+</div>
+
+<div id="messages" class="messages"></div>
+
+<div class="input-row">
+    <input type="text" id="inputText" placeholder="Type your message..." />
+    <button id="sendBtn">Send</button>
+</div>
+
+<!-- Подключаем скрипт. Будем использовать ipcRenderer. -->
+<script>
+  const { ipcRenderer } = window.require('electron');
+
+  const hostEl = document.getElementById('host');
+  const portEl = document.getElementById('port');
+  const connectBtn = document.getElementById('connectBtn');
+  const messagesEl = document.getElementById('messages');
+  const inputTextEl = document.getElementById('inputText');
+  const sendBtn = document.getElementById('sendBtn');
+
+  function addMessage(text, className = '') {
+    const div = document.createElement('div');
+    div.innerText = text;
+    if (className) div.classList.add(className);
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  // Клик "Connect"
+  connectBtn.addEventListener('click', () => {
+    const host = hostEl.value;
+    const port = parseInt(portEl.value, 10) || 3003;
+    ipcRenderer.send('connect-to-server', { host, port });
+    addMessage(`[Client] Connecting to ${host}:${port}...`, 'client-msg');
+  });
+
+  // Клик "Send"
+  sendBtn.addEventListener('click', () => {
+    const text = inputTextEl.value.trim();
+    if (!text) return;
+    ipcRenderer.send('send-message', text);
+    addMessage(`[You]: ${text}`, 'own-msg');
+    inputTextEl.value = '';
+    inputTextEl.focus();
+  });
+
+  // Пришло сообщение от main.ts
+  ipcRenderer.on('chat-message', (event, msg) => {
+    addMessage(`[Server]: ${msg}`, 'server-msg');
+  });
+
+  // Пришло системное сообщение (ошибки и т.д.)
+  ipcRenderer.on('system-message', (event, msg) => {
+    addMessage(`[System]: ${msg}`, 'system-msg');
+  });
+</script>
+</body>
+</html>
