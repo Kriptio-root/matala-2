@@ -25,5 +25,9 @@ const SERVICE_IDENTIFIER = {
   SIGNALS: Symbol.for('SIGNALS'),
   IPipeline: Symbol.for('IPipeline'),
   IOfflineMessageTransform: Symbol.for('IOfflineMessageTransform'),
+  IMessageService: Symbol.for('IMessageService'),
+  IMessageRepository: Symbol.for('IMessageRepository'),
+  IChatController: Symbol.for('IChatController'),
+  IServer: Symbol.for('IServer'),
 }
 export { SERVICE_IDENTIFIER }

@@ -1,6 +1,8 @@
+import type { TUserFromDb } from '../types'
+
 export interface IUserService {
-  createOrGetUser(name: string): Promise<void>;
-  setUserOnline(name: string, isOnline: boolean): Promise<void>;
-  getOfflineMessages(name: string): Promise<{ fromName: string; content: string }[]>;
-  markMessagesDelivered(name: string): Promise<void>;
+  createUser(name: string): Promise<TUserFromDb>
+  getUserByName(name: string): Promise<TUserFromDb>
+  setUserOnline(name: string): Promise<void>
+  setUserOffline(name: string): Promise<void>
 }

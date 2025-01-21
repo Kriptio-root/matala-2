@@ -42,7 +42,7 @@ export class PinoLoggerUtil implements IPinoLogger {
     if (messageConstants.MESSAGE_ID in message) {
       // eslint-disable-next-line @typescript-eslint/no-magic-numbers
       this.logger.info(
-        this.createTracedMessage(message.message_id, args, message.text),
+        this.createTracedMessage(message.messageId, args, message.text),
       )
     } else {
       this.logger.info(
@@ -60,7 +60,7 @@ export class PinoLoggerUtil implements IPinoLogger {
     if (messageConstants.MESSAGE_ID in message) {
       // eslint-disable-next-line @typescript-eslint/no-magic-numbers
       this.logger.error(
-        this.createTracedMessage(message.message_id, args, message.text),
+        this.createTracedMessage(message.messageId, args, message.text),
       )
     } else {
       this.logger.error(

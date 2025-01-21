@@ -5,7 +5,7 @@ export function createRuntimeInfo(
   configuration: TConfiguration,
 ): TMessageConstants {
   return {
-    SERVER_STARTED: `Server started on port:${configuration.port.toString()}`,
+    SERVER_STARTED: `Server started on port:${configuration.serverPort.toString()}`,
     APP_INITIALIZATION: 'Initializing the application',
     DONE: 'Done',
     REQUEST_RECEIVED: 'Request received',

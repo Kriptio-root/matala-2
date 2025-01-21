@@ -40,15 +40,17 @@ model Session {
 
 model Message {
   id          Int      @id @default(autoincrement())
-  content     String
+  text        String
+  command     String
   createdAt   DateTime @default(now())
   isDelivered Boolean  @default(false)
 
   // Кто отправил сообщение
-  fromUserId Int
-  fromUser   User @relation("SentMessages", fields: [fromUserId], references: [id])
+  fromUserNickname String
+  fromUser         User   @relation("SentMessages", fields: [fromUserNickname], references: [nickname])
 
   // Кто получатель
-  toUserId Int
-  toUser   User @relation("ReceivedMessages", fields: [toUserId], references: [id])
+  toUserNickname String?
+  toUser         User?   @relation("ReceivedMessages", fields: [toUserNickname], references: [nickname])
+  public         Boolean @default(true)
 }

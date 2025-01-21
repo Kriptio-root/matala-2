@@ -1,5 +1,5 @@
 export { ChatService } from './chat.service'
-export { DatabaseService } from './database.service'
 export { UserService } from './user.service'
 export { PrismaService } from './prisma.service'
 export { Pipeline } from './pipeline.service'
+export { MessageService } from './message.service'

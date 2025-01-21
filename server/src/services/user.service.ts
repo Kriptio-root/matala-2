@@ -1,36 +1,51 @@
-// src/services/UserService.ts
 import { injectable, inject } from 'inversify'
-import { IUserService } from '../interfaces/IUserService'
-import { DatabaseService } from '../db/DatabaseService'
-import { TYPES } from '../types/types'
+
+import type {
+  IUserService,
+  IUserRepository,
+} from '../interfaces'
+import {
+  SERVICE_IDENTIFIER,
+  TUserFromDb,
+} from '../types'
 
 @injectable()
 export class UserService implements IUserService {
   constructor(
-    @inject(TYPES.DatabaseService) private dbService: DatabaseService,
+    @inject(SERVICE_IDENTIFIER.IUserRepository)
+    private userRepository: IUserRepository,
   ) {}
 
-  public async createOrGetUser(name: string): Promise<void> {
-    const existingUser = await this.dbService.getUserByName(name)
+  public async getUserByName(name: string): Promise<TUserFromDb> {
+    try {
+    let existingUser: TUserFromDb | null = await this.userRepository.findUnique(name)
     if (!existingUser) {
       // Создаём нового
-      await this.dbService.createUser(name)
-    } else {
+     await this.createUser(name)
+    }
       // Помечаем как онлайн
-      await this.setUserOnline(name, true)
+      await this.setUserOnline(name)
+      existingUser = await this.userRepository.findUnique(name)
+      if (!existingUser) {
+        throw new Error('User not found')
+      }
+      return existingUser
+    } catch (error) {
+      console.log(error)
+      throw new Error('User not found')
     }
   }
 
-  public async setUserOnline(name: string, isOnline: boolean): Promise<void> {
-    await this.dbService.setUserOnline(name, isOnline)
+  public async createUser(name: string): Promise<TUserFromDb> {
+    const newUser: TUserFromDb = await this.userRepository.create(name)
+    return newUser
   }
 
-  public async getOfflineMessages(name: string): Promise<{ fromName: string; content: string; }[]> {
-    // Вернём список сообщений (createdAt можно не возвращать в interface, но можем расширить)
-    return this.dbService.getOfflineMessages(name)
+  public async setUserOnline(name: string): Promise<void> {
+    await this.userRepository.setUserOnline(name)
   }
 
-  public async markMessagesDelivered(name: string): Promise<void> {
-    return this.dbService.markMessagesDelivered(name)
+  public async setUserOffline(name: string): Promise<void> {
+    await this.userRepository.setUserOnline(name)
   }
 }

@@ -7,7 +7,6 @@
   "description": "Matala 2 - Simple TCP server and client for chat application",
   "private": true,
   "scripts": {
-    "start": "npm run start:server & npm run start:client",
     "start:server": "npm run dev --workspace server",
     "start:client": "npm run dev --workspace client",
     "lint:server": "npm run lint --workspace server",

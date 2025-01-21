@@ -1,16 +1,11 @@
 import type { TMessageConstants } from '../message-constants.type'
 
-import type { TConfiguration } from '../configuration.type'
-
-export function createWarnings(
-  configuration: TConfiguration,
-): TMessageConstants {
+export function createWarnings(): TMessageConstants {
   return {
     AT_LEAST_ONE_FIELD_MUST_BE_PROVIDED: 'At least one field must be provided',
     PROVIDE_NEW_PASSWORD: 'To update password,provide new password',
     PROVIDE_ALL_FIELDS: 'To create user,all fields must be provided',
     NOT_IMPLEMENTED: 'Not implemented',
-    PASSWORD_LENGTH: `Password must be at least ${configuration.minPasswordLength.toString()} characters`,
     INTEGRITY_CHECK_FAILED: 'Integrity check failed',
     PASSWORDS_DO_NOT_MATCH: 'Passwords do not match',
     PROVIDE_NICKNAME: 'To get user by nickname, provide nickname',

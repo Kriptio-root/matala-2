@@ -16,6 +16,7 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "moduleResolution": "node",
+    "esModuleInterop": true,
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
     "alwaysStrict": true,
@@ -28,16 +29,15 @@
     "strictFunctionTypes": true,
     "strictPropertyInitialization": true,
     "useUnknownInCatchVariables": true,
-    "outDir": "./build",
-    "baseUrl": "./src",
+    "outDir": "../build/client",
+    "baseUrl": "./",
     "paths": {
       "*": [
-        "./build/*",
+        "../build/*",
         "./src/types/*.d.ts"]
     },
     "lib": ["es6"],
     "types": [
-      "reflect-metadata",
       "node"
     ],
 
@@ -47,7 +47,9 @@
     "src/**/*.d.ts"
   ],
   "exclude": [
+    "../node_modules",
     "node_modules",
     "build",
+    "../build"
   ]
 }

@@ -1,4 +1,8 @@
-import { inject, injectable } from 'inversify'
+// src/server.ts
+import {
+  inject,
+  injectable,
+} from 'inversify'
 
 import {
   createServer,
@@ -8,26 +12,37 @@ import {
 
 import type { TConfiguration } from './types'
 
-import { IPinoLogger } from './interfaces'
+import type {
+  IPinoLogger,
+  IChatController,
+  IServer,
+} from './interfaces'
 
 import { SERVICE_IDENTIFIER } from './types'
 
 @injectable()
-export class TcpServer {
+export class TcpServer implements IServer {
   private server: Server
 
   private port: number
 
-  public constructor(
-    @inject(SERVICE_IDENTIFIER.IPinoLogger)
-    private readonly logger: IPinoLogger,
+  constructor(
     @inject(SERVICE_IDENTIFIER.TConfiguration)
     private readonly configuration: TConfiguration,
 
+    @inject(SERVICE_IDENTIFIER.IChatController)
+    private readonly chatController: IChatController,
+
+    @inject(SERVICE_IDENTIFIER.IPinoLogger)
+    private readonly logger: IPinoLogger,
   ) {
+    // Берём порт из TConfiguration (например, serverPort = 3000)
     this.port = this.configuration.serverPort
+
+    // Создаём TCP-сервер (net.createServer)
     this.server = createServer((socket: Socket) => {
-      chatController.handleConnection(socket)
+      // Пробрасываем соединение в chatController
+      this.chatController.handleConnection(socket)
     })
   }
 

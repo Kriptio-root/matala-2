@@ -1,37 +1,36 @@
 {
   "name": "client",
   "version": "1.0.0",
-  "keywords": ["chat", "tcp", "server", "client", "matala", "matala-2", "Konstantin Potyomkin"],
+  "keywords": [
+    "chat",
+    "tcp",
+    "server",
+    "client",
+    "matala",
+    "matala-2",
+    "Konstantin Potyomkin"
+  ],
   "author": "Konstantin Potyomkin",
   "license": "ISC",
   "type": "commonjs",
   "description": "Matala 2 - Simple TCP server and client for chat application",
-  "main": "./build/index.js",
+  "main": "../build/client/index.js",
   "engines": {
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "rimraf ./build && tsc && nodemon ./build/index.js",
-    "start": "node ./build/index.js",
-    "preprod": "npm run build && node ./build/index.js",
-    "build": "rimraf ./build && tsc",
-    "delete-build": "rimraf ./build",
+    "dev": "npm run build && nodemon ../build/client/index.js",
+    "start": "node ../build/client/index.js",
+    "preprod": "npm run build && node ../build/client/index.js",
+    "build": "npm run delete-build && tsc",
+    "delete-build": "rimraf ../build/client",
     "delete-js": "rimraf src//*.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix"
   },
   "dependencies": {
-    "@abraham/reflection": "^0.12.0",
-    "@prisma/client": "^5.21.1",
     "@t3-oss/env-core": "^0.10.1",
-    "dotenv": "^16.3.1",
-    "glob": "^10.3.10",
-    "inversify": "^6.0.2",
-    "inversify-inject-decorators": "^3.1.0",
-    "inversify-logger-middleware": "^3.1.0",
-    "pino": "^9.5.0",
-    "pino-pretty": "^11.0.0",
-    "reflect-metadata": "^0.2.2",
-    "uuid": "^11.0.2"
+    "chalk": "^5.4.1",
+    "dotenv": "^16.3.1"
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^2.8.0",
@@ -50,9 +49,7 @@
     "nodemon": "^3.1.4",
     "prettier": "^3.0.0",
     "prettier-eslint": "^16.3.0",
-    "prisma": "^5.21.1",
     "rimraf": "^6.0.1",
-    "source-map-support": "^0.5.21",
     "ts-loader": "^9.4.3",
     "ts-node": "^10.9.1",
     "tsconfig-paths": "^4.2.0",

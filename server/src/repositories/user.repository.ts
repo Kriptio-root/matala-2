@@ -21,16 +21,12 @@ export class UserRepository implements IUserRepository {
     this.prismaClient = this.prisma.client
   }
 
-  public async findUnique(nickname: string): Promise<TUserFromDb> {
+  public async findUnique(nickname: string): Promise<TUserFromDb | null> {
     try {
     const user: TUserFromDb | null = await this.prismaClient.user.findUnique({
       where: { nickname: nickname },
     })
-    if (user) {
       return user
-    }
-      console.log('User not found')
-      throw new Error('User not found')
     } catch (error) {
         console.log(error)
         throw new Error('User not found')
@@ -39,12 +35,16 @@ export class UserRepository implements IUserRepository {
 
   public async setUserOnline(nickname: string): Promise<void> {
     try {
-    const user: TUserFromDb = await this.findUnique(nickname)
-
+    const user: TUserFromDb | null = await this.findUnique(nickname)
+if (user) {
     await this.prismaClient.user.update({
       where: { nickname: user.nickname },
       data: { isOnline: true },
-    }) } catch (error) {
+    }) } else {
+        console.log('User not found')
+        throw new Error('User not found')
+  }
+    } catch (error) {
         console.log(error)
       throw new Error('User not found')
     }
@@ -55,26 +55,31 @@ export class UserRepository implements IUserRepository {
     try {
     const user:TUserFromDb | null = await this.findUnique(nickname)
     // Обновляем isOnline = false
-
+      if (user) {
     await this.prismaClient.user.update({
       where: { nickname: user.nickname },
       data: { isOnline: false },
-    })
+    }) } else {
+        console.log('User not found')
+        throw new Error('User not found')
+      }
     } catch (error) {
       console.log('User not found')
         throw new Error('User not found')
     }
   }
 
-  public async create(nickname: string): Promise<void> {
+  public async create(nickname: string): Promise<TUserFromDb> {
     try {
       // Создаём нового
-      await this.prismaClient.user.create({
+     const newUser: TUserFromDb = await this.prismaClient.user.create({
         data: {
           nickname: nickname,
           isOnline: true,
         },
-      }) } catch (error) {
+      })
+      return newUser
+    } catch (error) {
         console.log('User not created')
         throw new Error('User not created')
       }

@@ -1,12 +1,20 @@
 import { Container } from 'inversify'
 import type { LoggerOptions } from 'pino'
+import { ChatController } from '../controllers'
 
 import {
   SessionRepository,
   UserRepository,
+  MessageRepository,
 } from '../repositories'
 
-import { Pipeline, PrismaService } from '../services'
+import { TcpServer } from '../server'
+
+import {
+  Pipeline,
+  PrismaService,
+  MessageService, ChatService, UserService,
+} from '../services'
 
 import {
   PinoLoggerUtil,
@@ -46,6 +54,12 @@ import type {
   ISessionRepository,
   IPipeline,
   IOfflineMessageTransform,
+  IMessageRepository,
+  IMessageService,
+  IChatService,
+  IUserService,
+  IServer,
+  IChatController,
 } from '../interfaces'
 
 const container: Container = new Container()
@@ -61,7 +75,7 @@ container
 
 container
   .bind<TMessageConstants>(SERVICE_IDENTIFIER.Warnings)
-  .toConstantValue(createWarnings(configuration))
+  .toConstantValue(createWarnings())
 
 container
   .bind<TMessageConstants>(SERVICE_IDENTIFIER.Errors)
@@ -123,11 +137,37 @@ container
   .inSingletonScope()
 
 container
+  .bind<IMessageRepository>(SERVICE_IDENTIFIER.IMessageRepository)
+    .to(MessageRepository)
+    .inSingletonScope()
+
+container
+  .bind<IMessageService>(SERVICE_IDENTIFIER.IMessageService)
+  .to(MessageService)
+
+container
   .bind<IPipeline>(SERVICE_IDENTIFIER.IPipeline)
     .to(Pipeline)
 
 container
   .bind<IOfflineMessageTransform>(SERVICE_IDENTIFIER.IOfflineMessageTransform)
     .to(OfflineMessageTransform)
+
+container
+  .bind<IChatService>(SERVICE_IDENTIFIER.IChatService)
+  .to(ChatService)
+
+container
+  .bind<IUserService>(SERVICE_IDENTIFIER.IUserService)
+    .to(UserService)
+
+container
+  .bind<IChatController>(SERVICE_IDENTIFIER.IChatController)
+    .to(ChatController)
+
+container
+  .bind<IServer>(SERVICE_IDENTIFIER.IServer)
+    .to(TcpServer)
+  .inSingletonScope()
 
 export { container }

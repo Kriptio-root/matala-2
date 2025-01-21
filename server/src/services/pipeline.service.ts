@@ -7,7 +7,7 @@ import {
   IPinoLogger,
   IPipeline,
 } from '../interfaces'
-import type { TOfflineMessage } from '../types'
+import type { TMessage } from '../types'
 import { SERVICE_IDENTIFIER } from '../types'
 
 @injectable()
@@ -24,7 +24,7 @@ export class Pipeline implements IPipeline {
    * с помощью конвейера (pipeline) и backpressure.
    */
   public pipelineOfflineMessages(
-    messages: TOfflineMessage[],
+    messages: TMessage[],
     socket: Socket,
     traceId: string,
   ): Promise<void> | never {

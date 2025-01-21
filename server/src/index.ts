@@ -1,8 +1,15 @@
-// src/index.ts
 import 'reflect-metadata'
-import { TcpServer } from './server'
+import { container } from './configuration'
+import type { IServer } from './interfaces'
+import { SERVICE_IDENTIFIER } from './types'
 
-const PORT = 3000
+// Точка входа
+function main() {
+  // Получаем TcpServer из контейнера
+  const server = container.get<IServer>(SERVICE_IDENTIFIER.IServer)
+  // Запускаем
+  server.start()
+}
 
-const server = new TcpServer(PORT)
-server.start()
+// Запуск
+main()

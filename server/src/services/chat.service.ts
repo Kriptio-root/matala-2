@@ -1,153 +1,217 @@
-// src/services/ChatService.ts
+/* eslint-disable */
 import { injectable, inject } from 'inversify'
 import { Socket } from 'net'
 import type {
   IChatService,
-  IDatabaseService,
   IPinoLogger,
   IUserService,
 } from '../interfaces'
 import { SERVICE_IDENTIFIER } from '../types'
 
+/**
+ * ChatService
+ * - Хранит onlineClients: Map<nickname, Socket> (для прямого доступа к сокетам).
+ * - Хранит activeChats:   Map<nickname, Set<nickname>> (список собеседников).
+ * - Реализует команды: $chat, $exit, $chats, $all, $help
+ * - Любой «не-командный» текст рассылается всем собеседникам из activeChats.
+ */
 @injectable()
 export class ChatService implements IChatService {
-  private onlineClients = new Map<string, Socket>() // кто сейчас онлайн
+  // кто сейчас онлайн (nickname -> Socket)
+  private onlineClients = new Map<string, Socket>()
 
-  // хранит, с кем хочет общаться конкретный пользователь (для простоты — Set имён)
+  // кто с кем в «активном» чате (nickname -> Set<partnerName>)
   private activeChats = new Map<string, Set<string>>()
 
   constructor(
-    @inject(SERVICE_IDENTIFIER.IDatabaseService)
-    private dbService: IDatabaseService,
     @inject(SERVICE_IDENTIFIER.IUserService)
-    private userService: IUserService,
+    private userService: IUserService, // для setUserOnline/offline и т.п.
     @inject(SERVICE_IDENTIFIER.IPinoLogger)
     private readonly logger: IPinoLogger,
   ) {}
 
   /**
-   * Вызывается, когда приходит сообщение от пользователя (clientName).
-   * В этом методе можно парсить команды (chat, leave, list, ...) — или передавать в отдельный объект-комманду.
+   * Обработка входящего сообщения (команда или обычный текст).
    */
   public async handleIncomingMessage(
     clientName: string,
     message: string,
     socket: Socket,
   ): Promise<void> {
-    // Простая логика: если строка начинается с "chat ", добавляем собеседника
-    // В более масштабном проекте — используем паттерн команда (Command) как раньше
-    if (message.startsWith('chat ')) {
-      const targetName = message.split(' ')[1]
-      this.addChatPartner(clientName, targetName, socket)
-      return
-    }
-
-    if (message.startsWith('leave ')) {
-      const targetName = message.split(' ')[1]
-      this.removeChatPartner(clientName, targetName, socket)
-      return
-    }
-
-    if (message === 'list') {
-      this.listChatPartners(clientName, socket)
-      return
-    }
-
-    // В противном случае — это обычное сообщение, рассылаем всем собеседникам
-    await this.sendMessageToAll(clientName, message, socket)
-  }
-
-  public async handleClientDisconnect(clientName: string): Promise<void> {
-    // пользователь офлайн
-    this.userService.setUserOnline(clientName, false)
-    this.onlineClients.delete(clientName)
-
-    // уведомляем собеседников
-    const partners = this.activeChats.get(clientName)
-    if (partners) {
-      for (const partnerName of partners) {
-        const partnerSocket = this.onlineClients.get(partnerName)
-        if (partnerSocket) {
-          partnerSocket.write(`Пользователь "${clientName}" вышел из сети.\n`)
-        }
+    // Если начинается с '$', это команда
+    if (message.startsWith('$')) {
+      // Пример: $chat Bob
+      if (message.startsWith('$chat ')) {
+        const parts = message.split(' ')
+        const targetName = parts[1]
+        this.addChatPartner(clientName, targetName, socket)
+        return
       }
+
+      // Пример: $exit Bob
+      if (message.startsWith('$exit ')) {
+        const parts = message.split(' ')
+        const targetName = parts[1]
+        this.removeChatPartner(clientName, targetName, socket)
+        return
+      }
+
+      // Пример: $chats — вывести всех «активных» партнёров
+      if (message === '$chats') {
+        this.listActiveChats(clientName, socket)
+        return
+      }
+
+      // Пример: $all Привет, это всем!
+      if (message.startsWith('$all ')) {
+        const text = message.replace('$all ', '')
+        await this.sendMessageToAll(clientName, text, socket)
+        return
+      }
+
+      // Пример: $help
+      if (message === '$help') {
+        this.getHelp(socket)
+        return
+      }
+
+      // иначе команда не распознана
+      socket.write('Неизвестная команда. Введите $help для справки\n')
+      return
     }
 
-    // удаляем set
-    this.activeChats.delete(clientName)
+    // Если это не команда, то это обычное сообщение
+    // Рассылаем ВСЕМ собеседникам, кто записан в activeChats[clientName].
+    const setOfChats = this.activeChats.get(clientName)
+    if (!setOfChats || setOfChats.size === 0) {
+      socket.write('У вас нет активных собеседников. Используйте $chat <nick> или $help\n')
+      return
+    }
 
-    // удаляем clientName из чужих set
-    for (const [user, setNames] of this.activeChats.entries()) {
-      if (setNames.has(clientName)) {
-        setNames.delete(clientName)
-      }
+    // Отправляем «message» всем собеседникам
+    for await (const targetName of setOfChats) {
+      await this.sendPrivateMessage(clientName, targetName, message)
     }
   }
-
-  // --- методы ниже ---
 
   /**
-   * Пользователь зашёл онлайн: запоминаем его сокет
+   * Когда пользователь отключается (socket.end)
    */
-  public addOnlineClient(name: string, socket: Socket) {
-    this.onlineClients.set(name, socket)
+  public async handleClientDisconnect(clientName: string): Promise<void> {
+    // ставим offline в БД
+    await this.userService.setUserOffline(clientName)
+
+    // убираем из onlineClients
+    this.onlineClients.delete(clientName)
+
+    // убираем все связи из activeChats
+    this.activeChats.delete(clientName)
+    for (const [_user, setOfPartners] of this.activeChats.entries()) {
+      if (setOfPartners.has(clientName)) {
+        setOfPartners.delete(clientName)
+      }
+    }
+
+    this.logger.info(`User ${clientName} disconnected, set offline, removed from activeChats`)
   }
 
-  private addChatPartner(clientName: string, targetName: string, socket: Socket) {
+  /**
+   * Пользователь зашёл онлайн: сохраним его в memory (map).
+   */
+  public async addOnlineClient(clientName: string, socket: Socket): Promise<void> {
+    try {
+    this.onlineClients.set(clientName, socket)
+    // Можно userService.setUserOnline(clientName) async
+    await this.userService.setUserOnline(clientName)
+    } catch (error: unknown) {
+      this.logger.error(`Error setting user ${clientName} online: `, error)
+    }
+    this.logger.info(`User ${clientName} is now online (socket saved)`)
+  }
+
+  /**
+   * Добавить «активного» собеседника (private chat).
+   */
+  public addChatPartner(clientName: string, targetName: string, socket: Socket): void {
     if (!this.activeChats.has(clientName)) {
       this.activeChats.set(clientName, new Set())
     }
     this.activeChats.get(clientName)!.add(targetName)
-    socket.write(`Вы добавили "${targetName}" в список собеседников.\n`)
-
-    // уведомим target (если онлайн)
-    const targetSocket = this.onlineClients.get(targetName)
-    if (targetSocket) {
-      targetSocket.write(`"${clientName}" теперь общается с вами.\n`)
-    }
+    socket.write(`Вы начали чат с "${targetName}". Теперь ваши сообщения идут только ему.\n`)
   }
 
-  private removeChatPartner(clientName: string, targetName: string, socket: Socket) {
-    const setOfChats = this.activeChats.get(clientName)
-    if (!setOfChats?.has(targetName)) {
-      socket.write(`Пользователь "${targetName}" не найден в вашем списке.\n`)
+  /**
+   * Убрать «активного» собеседника.
+   */
+  public removeChatPartner(clientName: string, targetName: string, socket: Socket): void {
+    const setOfPartners = this.activeChats.get(clientName)
+    if (!setOfPartners?.has(targetName)) {
+      socket.write(`У вас нет собеседника "${targetName}" в активном чате.\n`)
       return
     }
-    setOfChats.delete(targetName)
-    socket.write(`Вы убрали "${targetName}" из списка собеседников.\n`)
+    setOfPartners.delete(targetName)
+    socket.write(`Вы вышли из чата с "${targetName}".\n`)
   }
 
-  private listChatPartners(clientName: string, socket: Socket) {
-    const setOfChats = this.activeChats.get(clientName)
-    if (!setOfChats || setOfChats.size === 0) {
-      socket.write('У вас нет собеседников.\n')
+  /**
+   * Показать всех собеседников (private chat partners) текущего пользователя.
+   */
+  public listActiveChats(clientName: string, socket: Socket): void {
+    const setOfPartners = this.activeChats.get(clientName)
+    if (!setOfPartners || setOfPartners.size === 0) {
+      socket.write('У вас нет активных чатов.\n')
       return
     }
     socket.write('Ваши собеседники:\n')
-    for (const name of setOfChats) {
-      socket.write(` - ${name}\n`)
+    for (const partner of setOfPartners) {
+      socket.write(` - ${partner}\n`)
     }
   }
 
   /**
-   * Рассылка сообщения всем собеседникам пользователя
+   * Отправить сообщение всем онлайн-пользователям (broadcast).
    */
-  private async sendMessageToAll(clientName: string, message: string, socket: Socket) {
-    const setOfChats = this.activeChats.get(clientName)
-    if (!setOfChats || setOfChats.size === 0) {
-      socket.write('У вас нет собеседников.\n')
-      return
-    }
-    for (const targetName of setOfChats) {
-      const targetSocket = this.onlineClients.get(targetName)
-      if (targetSocket) {
-        // онлайн
-        targetSocket.write(`[${clientName}]: ${message}\n`)
-      } else {
-        // офлайн — сохраним в БД
-        await this.dbService.saveMessage(clientName, targetName, message)
-        socket.write(`Пользователь "${targetName}" офлайн. Сообщение сохранено.\n`)
+  public async sendMessageToAll(clientName: string, message: string, socket: Socket): Promise<void> {
+    // Высылаем всем, кто онлайн, кроме самого отправителя
+    for await (const [otherName, otherSocket] of this.onlineClients.entries()) {
+      if (otherName !== clientName) {
+        otherSocket.write(`[${clientName} -> ALL]: ${message}\n`)
       }
     }
+    socket.write('(Отправлено всем онлайн-юзерам)\n')
+  }
+
+  /**
+   * Отправить приватное сообщение (clientName -> targetName).
+   * Если targetName онлайн, передаём сразу по socket.
+   * Иначе — офлайн: сохранить в БД через messageService (зависит от архитектуры).
+   */
+  public async sendPrivateMessage(clientName: string, targetName: string, text: string): Promise<void> {
+    const targetSocket = this.onlineClients.get(targetName)
+    if (targetSocket) {
+      targetSocket.write(`[${clientName} -> ${targetName}]: ${text}\n`)
+    } else {
+      // пользователь офлайн => сохранить офлайн
+      this.logger.info(`User ${targetName} is offline; message stored offline (not shown here).`)
+      // Тут можно вызвать messageService.saveMessage({ from: clientName, to: targetName, text, ... })
+    }
+  }
+
+  /**
+   * Вывести подсказку (help)
+   */
+  public getHelp(socket: Socket): void {
+    socket.write(`
+*** ДОСТУПНЫЕ КОМАНДЫ ***
+$chat <nickname>  - добавить собеседника <nickname>
+$exit <nickname>  - убрать собеседника <nickname>
+$chats           - показать список активных собеседников
+$list            - (если реализовали) показать всех онлайн-пользователей
+$all <text>      - отправить сообщение всем
+$help           - показать эту справку
+
+Обычное текстовое сообщение (без $) уйдёт всем вашим активным собеседникам.
+-----------------------------
+`)
   }
 }

@@ -1,8 +1,11 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 export type TMessage = {
-  message_id: number
+  messageId: number
   text: string
   command: string
-  to: string
+  createdAt: Date
+  to?: string | null
   from: string
+  isDelivered: boolean
+  public: boolean
 }

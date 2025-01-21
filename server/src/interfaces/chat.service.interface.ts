@@ -4,22 +4,22 @@ export interface IChatService {
   handleIncomingMessage(
     clientName: string,
     message: string,
-    socket: Socket
-  ): Promise<void>;
+    socket: Socket,
+  ): Promise<void>
 
-  handleClientDisconnect(clientName: string): Promise<void>;
+  handleClientDisconnect(clientName: string): Promise<void>
 
-  addOnlineClient(name: string, socket: Socket): void;
+  addOnlineClient(clientName: string, socket: Socket): Promise<void>
 
-  removeOnlineClient(name: string): void;
+  addChatPartner(clientName: string, targetName: string, socket: Socket): void
 
-  addChatPartner(clientName: string, targetName: string, socket: Socket): void;
+  removeChatPartner(clientName: string, targetName: string, socket: Socket): void
 
-  removeChatPartner(clientName: string, targetName: string, socket: Socket): void;
+  listActiveChats(clientName: string, socket: Socket): void
 
-  listChatPartners(clientName: string, socket: Socket): void;
+  sendMessageToAll(clientName: string, message: string, socket: Socket): Promise<void>
 
-  sendMessageToAll(clientName: string, message: string, socket: Socket): Promise<void>;
+  sendPrivateMessage(clientName: string, targetName: string, text: string): Promise<void>
 
-  sendMessageToClient(clientName: string, targetName: string, message: string, socket: Socket): Promise<void>;
+  getHelp(socket: Socket): void
 }
