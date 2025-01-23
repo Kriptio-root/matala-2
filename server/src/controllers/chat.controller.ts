@@ -35,12 +35,13 @@ export class ChatController implements IChatController {
   // handle incoming connection
   public handleConnection(socket: Socket): void {
     try {
-      if (!this.chatService.checkSocketBinding(socket)) {
+      const traceId = uuidv4()
+      if (!this.chatService.checkSocketBinding(socket, traceId)) {
         socket.write('Enter your nickname:\n')
       }
 
       socket.on('data', (data: Buffer) => {
-        this.onSocketData(data, socket)
+        this.onSocketData(data, socket, traceId)
           .catch((error: unknown) => {
             this.logger.error('Error in onSocketData:', error)
           })
@@ -83,10 +84,10 @@ export class ChatController implements IChatController {
   private async onSocketData(
     data: Buffer,
     socket: Socket,
+    traceId: string,
   ): Promise<void> {
     try {
       const input = data.toString().trim()
-      const traceId = uuidv4()
 
       // if input is empty, return
       if (!input) {
@@ -103,17 +104,17 @@ export class ChatController implements IChatController {
           user = await this.userService.createUser(input)
         }
         // set isOnline
-        await this.chatService.addOnlineClient(user.nickname, socket)
+        await this.chatService.addOnlineClient(user.nickname, socket, traceId)
 
         // set clientName in the controller
         this.clientName = user.nickname
 
         // flush offline messages
-        const offlineMessages = await this.messageService.getOfflineMessages(user.nickname)
+        const offlineMessages = await this.messageService.getOfflineMessages(user.nickname, traceId)
         if (offlineMessages.length > 0) {
           socket.write(`You have ${offlineMessages.length.toString()} new messages:\n`)
           await this.pipeline.pipelineOfflineMessages(offlineMessages, socket, traceId)
-          await this.messageService.markMessagesDelivered(user.nickname)
+          await this.messageService.markMessagesDelivered(user.nickname, traceId)
         }
         return
       }
@@ -122,7 +123,7 @@ export class ChatController implements IChatController {
       command from the client
       */
       this.logger.info({ traceId: traceId, clientName: this.clientName, input: input }, 'Incoming message')
-      await this.chatService.handleIncomingMessage(this.clientName, input, socket)
+      await this.chatService.handleIncomingMessage(this.clientName, input, socket, traceId)
     } catch (error: unknown) {
       this.logger.error('Error in onSocketData:', error)
       this.handleConnection(socket)

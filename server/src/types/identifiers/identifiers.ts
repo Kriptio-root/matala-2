@@ -29,5 +29,6 @@ const SERVICE_IDENTIFIER = {
   IMessageRepository: Symbol.for('IMessageRepository'),
   IChatController: Symbol.for('IChatController'),
   IServer: Symbol.for('IServer'),
+  IHistoryMessageTransform: Symbol.for('IHistoryMessageTransform'),
 }
 export { SERVICE_IDENTIFIER }

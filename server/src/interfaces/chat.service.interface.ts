@@ -5,23 +5,26 @@ export interface IChatService {
     clientName: string,
     message: string,
     socket: Socket,
+    traceId: string
   ): Promise<void>
 
   handleClientDisconnect(clientName: string): Promise<void>
 
-  addOnlineClient(clientName: string, socket: Socket): Promise<void>
+  addOnlineClient(clientName: string, socket: Socket, traceId: string): Promise<void>
 
-  addChatPartner(clientName: string, targetName: string, socket: Socket): void
+  addChatPartner(clientName: string, targetName: string, socket: Socket, traceId: string): Promise<void>
 
-  removeChatPartner(clientName: string, targetName: string, socket: Socket): void
+  removeChatPartner(clientName: string, targetName: string, socket: Socket, traceId: string): void
 
-  listActiveChats(clientName: string, socket: Socket): void
+  listActiveChats(clientName: string, socket: Socket, traceId: string): void
 
-  sendMessageToAll(clientName: string, message: string, socket: Socket): Promise<void>
+  listOnlineUsers(socket: Socket, traceId: string): Promise<void>
 
-  sendPrivateMessage(clientName: string, targetName: string, text: string): Promise<void>
+  sendMessageToAll(clientName: string, message: string, socket: Socket, traceId: string): Promise<void>
 
-  checkSocketBinding(socket: Socket): boolean
+  sendPrivateMessage(clientName: string, targetName: string, text: string, traceId: string): Promise<void>
 
-  getHelp(socket: Socket): void
+  checkSocketBinding(socket: Socket, traceId: string): boolean
+
+  getHelp(socket: Socket, traceId: string): void
 }

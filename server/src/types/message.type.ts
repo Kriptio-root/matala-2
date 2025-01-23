@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 export type TMessage = {
-  messageId: number
+  messageId: string
   text: string
   command: string
   createdAt: Date

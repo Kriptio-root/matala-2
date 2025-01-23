@@ -3,10 +3,19 @@ import { injectable, inject } from 'inversify'
 import { Socket } from 'net'
 import type {
   IChatService,
+  IMessageService,
   IPinoLogger,
   IUserService,
+  IErrorWithoutAdditionalHandling, IPipeline
 } from '../interfaces'
-import {SERVICE_IDENTIFIER, TUserFromDb} from '../types'
+
+import type {
+  TMessage,
+  TMessageConstants,
+  TUserFromDb
+} from '../types'
+
+import { SERVICE_IDENTIFIER } from '../types'
 
 /**
  * ChatService
@@ -15,7 +24,7 @@ import {SERVICE_IDENTIFIER, TUserFromDb} from '../types'
  * - activeChats contains:   Map<nickname, Set<nickname>> (for directs
  * access to active user chats).
  * - class implements: $chat, $exit, $chats, $all, $help commands
- * - every non command message will be send to partners in activeChats.
+ * - every non-command message will be sent to partners in activeChats.
  */
 @injectable()
 export class ChatService implements IChatService {
@@ -28,8 +37,16 @@ export class ChatService implements IChatService {
   constructor(
     @inject(SERVICE_IDENTIFIER.IUserService)
     private userService: IUserService,
+    @inject(SERVICE_IDENTIFIER.IMessageService)
+    private messageService: IMessageService,
     @inject(SERVICE_IDENTIFIER.IPinoLogger)
     private readonly logger: IPinoLogger,
+    @inject(SERVICE_IDENTIFIER.IErrorWithoutAdditionalHandling)
+    private errorWithoutAdditionalHandling: IErrorWithoutAdditionalHandling,
+    @inject(SERVICE_IDENTIFIER.Errors)
+    private readonly errors: TMessageConstants,
+    @inject(SERVICE_IDENTIFIER.IPipeline)
+    private readonly pipeline: IPipeline,
   ) {}
 
    // handle incoming message or command.
@@ -37,14 +54,16 @@ export class ChatService implements IChatService {
     clientName: string,
     message: string,
     socket: Socket,
+    traceId: string
   ): Promise<void> {
+    try{
     // if message starts with $, it is command
     if (message.startsWith('$')) {
       // example: $chat Bob
       if (message.startsWith('$chat ')) {
         const parts = message.split(' ')
         const targetName = parts[1]
-        this.addChatPartner(clientName, targetName, socket)
+        this.addChatPartner(clientName, targetName, socket, traceId)
         return
       }
 
@@ -52,32 +71,32 @@ export class ChatService implements IChatService {
       if (message.startsWith('$exit ')) {
         const parts = message.split(' ')
         const targetName = parts[1]
-        this.removeChatPartner(clientName, targetName, socket)
+        this.removeChatPartner(clientName, targetName, socket, traceId)
         return
       }
 
       // example: $chats — get list of active chats
       if (message === '$chats') {
-        this.listActiveChats(clientName, socket)
+        this.listActiveChats(clientName, socket, traceId)
         return
       }
 
       // example: $chats — get list of online users
       if (message === '$list') {
-       await this.listOnlineUsers(socket)
+       await this.listOnlineUsers(socket, traceId)
         return
       }
 
       // example: $all message - send message to all online users
       if (message.startsWith('$all ')) {
         const text = message.replace('$all ', '')
-        await this.sendMessageToAll(clientName, text, socket)
+        await this.sendMessageToAll(clientName, text, socket, traceId)
         return
       }
 
       // example: $help - show help message
       if (message === '$help') {
-        this.getHelp(socket)
+        this.getHelp(socket, traceId)
         return
       }
 
@@ -97,7 +116,18 @@ export class ChatService implements IChatService {
 
     // send message to all active chats
     for await (const targetName of setOfChats) {
-      await this.sendPrivateMessage(clientName, targetName, message)
+      await this.sendPrivateMessage(clientName, targetName, message, traceId)
+    }
+    } catch (error: unknown) {
+        this.logger.error(
+            `${traceId}: `,
+            `Error handling incoming message for user ${clientName}: `,
+            error
+        )
+        this.errorWithoutAdditionalHandling.throw(
+            this.errors.FAILED_TO_HANDLE_INCOMING_MESSAGE,
+            error,
+        )
     }
   }
 
@@ -121,28 +151,62 @@ export class ChatService implements IChatService {
   }
 
    //handle user connect,set him to memory (onlineClients).
-  public async addOnlineClient(clientName: string, socket: Socket): Promise<void> {
+  public async addOnlineClient(clientName: string, socket: Socket, traceId: string): Promise<void> {
     try {
+      this.logger.info(
+        { traceId: traceId },
+        `Adding online user: ${clientName}`,
+      )
     this.onlineClients.set(clientName, socket)
     await this.userService.setUserOnline(clientName)
     } catch (error: unknown) {
-      this.logger.error(`Error setting user ${clientName} online: `, error)
+      this.logger.error(
+        `${traceId}: `,
+        `Error setting user ${clientName} online: `,
+        error
+      )
+        this.errorWithoutAdditionalHandling.throw(
+            this.errors.FAILED_TO_SET_USER_ONLINE,
+            error,
+        )
     }
     this.logger.info(`User ${clientName} is now online (socket saved)`)
   }
 
    // add active user to private chat.
-  public addChatPartner(clientName: string, targetName: string, socket: Socket): void {
+  public async addChatPartner(clientName: string, targetName: string, socket: Socket, traceId: string): Promise<void> {
+    try{
+      this.logger.info(
+        `${traceId}: `,
+        `User ${clientName} started chat with ${targetName}`,
+      )
+      const messagesHistory: TMessage[] = await this.messageService.getMessagesHistory(targetName, clientName, traceId)
+      if (messagesHistory.length > 0) {
+        socket.write(`You have ${messagesHistory.length.toString()} history messages in this chat:\n`)
+        await this.pipeline.pipelineHistoryMessages(messagesHistory, socket, traceId)
+      }
     if (!this.activeChats.has(clientName)) {
       this.activeChats.set(clientName, new Set())
     }
     this.activeChats.get(clientName)!.add(targetName)
     socket.write(`You started chat with "${targetName}". Now he will get directly your messages.\n`)
+    } catch (error: unknown) {
+      this.logger.error(
+        `${traceId}: `,
+        `Error adding chat partner ${targetName} for user ${clientName}: `,
+        error
+      )
+      this.errorWithoutAdditionalHandling.throw(
+        this.errors.FAILED_TO_ADD_CHAT_PARTNER,
+        error,
+      )
+    }
   }
 
 
    // remove active user from chat.
-  public removeChatPartner(clientName: string, targetName: string, socket: Socket): void {
+  public removeChatPartner(clientName: string, targetName: string, socket: Socket, traceId: string): void {
+    try{
     const setOfPartners = this.activeChats.get(clientName)
     if (!setOfPartners?.has(targetName)) {
       socket.write(`You dont have this user "${targetName}" in active chat.\n`)
@@ -150,11 +214,23 @@ export class ChatService implements IChatService {
     }
     setOfPartners.delete(targetName)
     socket.write(`You leave chat with "${targetName}".\n`)
+    } catch (error: unknown) {
+      this.logger.error(
+        `${traceId}: `,
+        `Error removing chat partner ${targetName} for user ${clientName}: `,
+        error
+      )
+    }
   }
 
 
    // show all partners in  private chat for current user
-  public listActiveChats(clientName: string, socket: Socket): void {
+  public listActiveChats(clientName: string, socket: Socket, traceId: string): void {
+    try{
+      this.logger.info(
+        `${traceId}: `,
+        `Getting active chats for user ${clientName}`,
+      )
     const setOfPartners = this.activeChats.get(clientName)
     if (!setOfPartners || setOfPartners.size === 0) {
       socket.write('You dont have active chats.\n')
@@ -164,17 +240,56 @@ export class ChatService implements IChatService {
     for (const partner of setOfPartners) {
       socket.write(` - ${partner}\n`)
     }
+    } catch (error: unknown) {
+        this.logger.error(
+            `${traceId}: `,
+            `Error getting active chats for user ${clientName}: `,
+            error
+        )
+        this.errorWithoutAdditionalHandling.throw(
+            this.errors.FAILED_TO_ADD_CHAT_PARTNER,
+            error,
+        )
+    }
   }
 
-   // send message to all online clients (broadcast).
-  public async sendMessageToAll(clientName: string, message: string, socket: Socket): Promise<void> {
-    // Высылаем всем, кто онлайн, кроме самого отправителя
+   // send message to all online clients (broadcast) except the sender.
+  public async sendMessageToAll(clientName: string, message: string, socket: Socket, traceId: string): Promise<void> {
+    try{
+      let delivered = true
+      this.logger.info(
+        `${traceId}: `,
+        `Sending message to all users for user ${clientName}`
+      )
     for await (const [otherName, otherSocket] of this.onlineClients.entries()) {
       if (otherName !== clientName) {
         otherSocket.write(`[${clientName} -> ALL]: ${message}\n`)
       }
+      const messageToSave: TMessage = this.messageService.composeMessageObject(
+        traceId,
+        clientName,
+        null,
+        message,
+        '$chat',
+        new Date(),
+        delivered,
+        true
+      )
+
+      await this.messageService.saveMessage(messageToSave)
     }
     socket.write('(Message send to all online users)\n')
+    } catch (error: unknown) {
+        this.logger.error(
+            `${traceId}: `,
+            `Error sending message to all users for user ${clientName}: `,
+            error
+        )
+        this.errorWithoutAdditionalHandling.throw(
+            this.errors.FAILED_TO_SEND_MESSAGE_TO_ALL,
+            error,
+        )
+    }
   }
 
   /**
@@ -182,38 +297,115 @@ export class ChatService implements IChatService {
    * if targetName is online, send direct to socket.
    * else user is offline: save to db to send later.
    */
-  public async sendPrivateMessage(clientName: string, targetName: string, text: string): Promise<void> {
-    const targetSocket = this.onlineClients.get(targetName)
+  public async sendPrivateMessage(clientName: string, targetName: string, text: string, traceId: string): Promise<void> {
+    try{
+      let delivered = false
+      this.logger.info(
+        `${traceId}: `,
+        `Sending private message from user ${clientName} to ${targetName}`
+      )
+    if (clientName === targetName) {
+      this.logger.warn(
+        `${traceId}: `,
+        `User ${clientName} tried to send message to himself.`,
+      )
+      this.onlineClients.get(clientName)?.write('You cannot send message to yourself.\n')
+    }
+    const targetSocket: Socket | undefined = this.onlineClients.get(targetName)
     if (targetSocket) {
       targetSocket.write(`[${clientName} -> ${targetName}]: ${text}\n`)
+      delivered = true
     } else {
-      // user is offline save message to db
-      this.logger.info(`User ${targetName} is offline; message stored offline (not shown here).`)
-      // Тут можно вызвать messageService.saveMessage({ from: clientName, to: targetName, text, ... })
+      // user is offline safe message to db
+      this.logger.warn(
+        `${traceId}: `,
+        `User ${targetName} is offline; message stored offline.`
+      )
+      delivered = false
+    }
+      // compose TMessage object and save to db
+      const message: TMessage = this.messageService.composeMessageObject(
+        traceId,
+        clientName,
+        targetName,
+        text,
+        '$chat',
+        new Date(),
+        delivered,
+        false
+      )
+      await this.messageService.saveMessage(message)
+    } catch (error: unknown) {
+      this.logger.error(
+        `${traceId}: `,
+        `Error sending private message from user ${clientName} to ${targetName}: `,
+        error
+      )
+      this.errorWithoutAdditionalHandling.throw(
+        this.errors.FAILED_TO_SEND_MESSAGE_TO_ALL,
+        error,
+      )
     }
   }
 
-  public async listOnlineUsers(socket: Socket): Promise<void> {
-    let onlineUsers: TUserFromDb[] | null = await this.userService.getOnlineUsers()
-    if (onlineUsers) {
-      socket.write('Online users:\n')
-  onlineUsers.forEach((user) => {
-    socket.write(` - ${user.nickname}\n`)
-  })
+  public async listOnlineUsers(socket: Socket, traceId: string): Promise<void> {
+    try {
+        this.logger.info(
+            `${traceId}: `,
+            `Getting online users list`
+        )
+      let onlineUsers: TUserFromDb[] | null = await this.userService.getOnlineUsers()
+      if (onlineUsers) {
+        socket.write('Online users:\n')
+        onlineUsers.forEach((user) => {
+          socket.write(` - ${user.nickname}\n`)
+        })
+      }
+    } catch (error: unknown) {
+        this.logger.error(
+            `${traceId}: `,
+            `Error getting online users list: `,
+            error
+        )
+        this.errorWithoutAdditionalHandling.throw(
+            this.errors.FAILED_TO_GET_ONLINE_USERS,
+            error,
+        )
     }
   }
 
 
-  // check if socket is binded to user
-  public checkSocketBinding(socket: Socket): boolean {
-    return Array.from(this.onlineClients.values()).some(
-      (sock) => sock === socket
-    )
+  // check if socket is bound to user
+  public checkSocketBinding(socket: Socket, traceId: string): boolean {
+    try {
+        this.logger.info(
+            `${traceId}: `,
+            `Checking socket binding`
+        )
+      return Array.from(this.onlineClients.values()).some(
+        (sock) => sock === socket
+      )
+    } catch (error: unknown) {
+      this.logger.error(
+        `${traceId}: `,
+        this.errors.ERROR_CHECKING_SOCKET_BINDING,
+        error
+      )
+      this.errorWithoutAdditionalHandling.throw(
+        this.errors.FAILED,
+        error,
+      )
+    }
   }
 
    // send help message to user
-  public getHelp(socket: Socket): void {
-    socket.write(`
+  public getHelp(socket: Socket, traceId: string): void {
+    try {
+        this.logger.info(
+            `${traceId}: `,
+            `Getting help message`
+        )
+      socket.write(`
 *** AVAILABLE COMMANDS ***
 $chat <nickname>  - add partner <nickname>
 $exit <nickname>  - remove partner <nickname>
@@ -222,8 +414,19 @@ $list            - show list of online users
 $all <text>      - send message to all online users
 $help           - show this help message
 
-all commands starts with '$' symbol, messages without '$' will sen to active chat or to all users in broadcast.
+all commands starts with '$' symbol, messages without '$' will send to active chat or to all users in broadcast.
 -----------------------------
 `)
+    } catch (error: unknown) {
+    this.logger.error(
+      `${traceId}: `,
+      `Error getting help message: `,
+      error
+    )
+    this.errorWithoutAdditionalHandling.throw(
+      this.errors.FAILED_TO_GET_HELP_MESSAGE,
+      error,
+    )
   }
+}
 }

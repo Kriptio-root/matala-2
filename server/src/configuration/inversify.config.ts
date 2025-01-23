@@ -13,7 +13,9 @@ import { TcpServer } from '../server'
 import {
   Pipeline,
   PrismaService,
-  MessageService, ChatService, UserService,
+  MessageService,
+  ChatService,
+  UserService,
 } from '../services'
 
 import {
@@ -21,6 +23,7 @@ import {
   ErrorInstanceTypescriptAdapter,
   ErrorWithoutAdditionalHandling,
   OfflineMessageTransform,
+  HistoryMessageTransform,
 } from '../utils'
 
 import { configuration } from './configuration'
@@ -54,6 +57,7 @@ import type {
   ISessionRepository,
   IPipeline,
   IOfflineMessageTransform,
+  IHistoryMessageTransform,
   IMessageRepository,
   IMessageService,
   IChatService,
@@ -152,6 +156,10 @@ container
 container
   .bind<IOfflineMessageTransform>(SERVICE_IDENTIFIER.IOfflineMessageTransform)
     .to(OfflineMessageTransform)
+
+container
+  .bind<IHistoryMessageTransform>(SERVICE_IDENTIFIER.IHistoryMessageTransform)
+  .to(HistoryMessageTransform)
 
 container
   .bind<IChatService>(SERVICE_IDENTIFIER.IChatService)

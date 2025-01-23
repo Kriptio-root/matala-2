@@ -7,4 +7,10 @@ export interface IPipeline {
     socket: Socket,
     traceId: string,
   ): Promise<void> | never;
+
+  pipelineHistoryMessages(
+    messages: TMessage[],
+    socket: Socket,
+    traceId: string,
+  ): Promise<void> | never;
 }
