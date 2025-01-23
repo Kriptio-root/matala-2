@@ -19,8 +19,9 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "npm run build && electron ../build/client/index.js",
     "start": "electron ../build/client/index.js",
+    "pre-prod": "npm run build",
+    "dev": "npm run build && electron ../build/client/index.js",
     "build": "npm run delete-build && tsc && npm run copy-public",
     "copy-public": "copyfiles ./public/**/* ../build/client",
     "delete-build": "rimraf ../build/client",

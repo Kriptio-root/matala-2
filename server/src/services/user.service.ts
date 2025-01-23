@@ -27,8 +27,8 @@ export class UserService implements IUserService {
       }
       return existingUser
     } catch (error) {
-      console.log(error)
-      throw new Error('User not found')
+    this.logger.warn('Error getting user by name:', error)
+      return undefined
     }
   }
 

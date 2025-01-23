@@ -11,10 +11,10 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "npm run prisma-migrate && npm run prisma && npm run build && nodemon ../build/server/index.js",
     "start": "node ../build/server/index.js",
-    "preprod": "npm run build && node ../build/server/index.js",
-    "build": "npm  run delete-build && tsc",
+    "pre-prod": "npm run prisma-migrate && npm run prisma && npm run build",
+    "dev": "npm run prisma-migrate && npm run prisma && npm run build && nodemon ../build/server/index.js",
+    "build": "npm run delete-build && tsc",
     "delete-build": "rimraf ../build/server",
     "delete-js": "rimraf .//*.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
