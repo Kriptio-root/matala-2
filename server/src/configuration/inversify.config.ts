@@ -64,6 +64,8 @@ import type {
   IUserService,
   IServer,
   IChatController,
+  IHistoryMessageTransformFactory,
+  IOfflineMessageTransformFactory,
 } from '../interfaces'
 
 const container: Container = new Container()
@@ -95,7 +97,7 @@ container
 
 container
   .bind<TLoggerFormatingConstants>(SERVICE_IDENTIFIER.TLoggerFormatingConstants)
-    .toConstantValue(loggerFormatingConstants)
+  .toConstantValue(loggerFormatingConstants)
 
 container
   .bind<LoggerOptions>(SERVICE_IDENTIFIER.PinoPrettyConfiguration)
@@ -122,15 +124,6 @@ container
   .to(ErrorWithoutAdditionalHandling)
 
 container
-  .bind<IErrorFactory>(SERVICE_IDENTIFIER.ErrorFactory)
-  .toDynamicValue(
-  (): IErrorFactory => ({
-    create: (message: string, error: unknown): ErrorInstanceTypescriptAdapter =>
-      new ErrorInstanceTypescriptAdapter(message, error),
-  }),
-)
-
-container
   .bind<IUserRepository>(SERVICE_IDENTIFIER.IUserRepository)
   .to(UserRepository)
   .inSingletonScope()
@@ -151,11 +144,11 @@ container
 
 container
   .bind<IPipeline>(SERVICE_IDENTIFIER.IPipeline)
-    .to(Pipeline)
+  .to(Pipeline)
 
 container
   .bind<IOfflineMessageTransform>(SERVICE_IDENTIFIER.IOfflineMessageTransform)
-    .to(OfflineMessageTransform)
+  .to(OfflineMessageTransform)
 
 container
   .bind<IHistoryMessageTransform>(SERVICE_IDENTIFIER.IHistoryMessageTransform)
@@ -167,15 +160,40 @@ container
 
 container
   .bind<IUserService>(SERVICE_IDENTIFIER.IUserService)
-    .to(UserService)
+  .to(UserService)
 
 container
   .bind<IChatController>(SERVICE_IDENTIFIER.IChatController)
-    .to(ChatController)
+  .to(ChatController)
 
 container
   .bind<IServer>(SERVICE_IDENTIFIER.IServer)
-    .to(TcpServer)
+  .to(TcpServer)
   .inSingletonScope()
+
+container
+  .bind<IErrorFactory>(SERVICE_IDENTIFIER.ErrorFactory)
+  .toDynamicValue(
+    (): IErrorFactory => ({
+      create: (message: string, error: unknown): ErrorInstanceTypescriptAdapter =>
+        new ErrorInstanceTypescriptAdapter(message, error),
+    }),
+  )
+
+container
+  .bind<IHistoryMessageTransformFactory>(SERVICE_IDENTIFIER.IHistoryMessageTransformFactory)
+  .toDynamicValue(
+    () => ({
+        create: ():IHistoryMessageTransform => new HistoryMessageTransform(),
+      }),
+  )
+
+container
+  .bind<IOfflineMessageTransformFactory>(SERVICE_IDENTIFIER.IOfflineMessageTransformFactory)
+  .toDynamicValue(
+    () => ({
+      create: ():IOfflineMessageTransform => new OfflineMessageTransform(),
+    }),
+  )
 
 export { container }

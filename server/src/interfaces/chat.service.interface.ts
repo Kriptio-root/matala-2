@@ -27,4 +27,6 @@ export interface IChatService {
   checkSocketBinding(socket: Socket, traceId: string): boolean
 
   getHelp(socket: Socket, traceId: string): void
+
+  getNameBoundToSocket(socket: Socket): string | undefined
 }

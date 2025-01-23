@@ -30,5 +30,7 @@ const SERVICE_IDENTIFIER = {
   IChatController: Symbol.for('IChatController'),
   IServer: Symbol.for('IServer'),
   IHistoryMessageTransform: Symbol.for('IHistoryMessageTransform'),
+  IOfflineMessageTransformFactory: Symbol.for('IOfflineMessageTransformFactory'),
+  IHistoryMessageTransformFactory: Symbol.for('IHistoryMessageTransformFactory'),
 }
 export { SERVICE_IDENTIFIER }

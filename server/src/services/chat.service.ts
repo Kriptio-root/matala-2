@@ -63,7 +63,7 @@ export class ChatService implements IChatService {
       if (message.startsWith('$chat ')) {
         const parts = message.split(' ')
         const targetName = parts[1]
-        this.addChatPartner(clientName, targetName, socket, traceId)
+       await this.addChatPartner(clientName, targetName, socket, traceId)
         return
       }
 
@@ -185,12 +185,24 @@ export class ChatService implements IChatService {
         socket.write(`You have ${messagesHistory.length.toString()} history messages in this chat:\n`)
         await this.pipeline.pipelineHistoryMessages(messagesHistory, socket, traceId)
       }
-    if (!this.activeChats.has(clientName)) {
+    if (!this.activeChats.has(clientName) && targetName !== clientName) {
       this.activeChats.set(clientName, new Set())
     }
     this.activeChats.get(clientName)!.add(targetName)
+      if (!this.activeChats.has(targetName) && targetName !== clientName && this.onlineClients.has(targetName)) {
+        this.activeChats.set(targetName, new Set())
+        this.activeChats.get(targetName)!.add(clientName)
+        let targetSocket: Socket | undefined = this.onlineClients.get(targetName)
+        if (targetSocket) {
+          targetSocket.write(`"${clientName}" started chat with . Now he will get directly your messages.\n To leave private chat type $exit ${clientName}\n`)
+          if (messagesHistory.length > 0) {
+            targetSocket.write(`You have ${messagesHistory.length.toString()} history messages in this chat:\n`)
+            await this.pipeline.pipelineHistoryMessages(messagesHistory, targetSocket, traceId)
+          }
+      }
     socket.write(`You started chat with "${targetName}". Now he will get directly your messages.\n`)
-    } catch (error: unknown) {
+    }
+    }catch (error: unknown) {
       this.logger.error(
         `${traceId}: `,
         `Error adding chat partner ${targetName} for user ${clientName}: `,
@@ -208,12 +220,22 @@ export class ChatService implements IChatService {
   public removeChatPartner(clientName: string, targetName: string, socket: Socket, traceId: string): void {
     try{
     const setOfPartners = this.activeChats.get(clientName)
+      const partnerSetOfPartners = this.activeChats.get(targetName)
     if (!setOfPartners?.has(targetName)) {
       socket.write(`You dont have this user "${targetName}" in active chat.\n`)
       return
     }
     setOfPartners.delete(targetName)
     socket.write(`You leave chat with "${targetName}".\n`)
+      if(!partnerSetOfPartners?.has(clientName)){
+        return
+      } else {
+        partnerSetOfPartners.delete(clientName)
+        let partnerSocket: Socket | undefined = this.onlineClients.get(targetName)
+        if(partnerSocket){
+          partnerSocket.write(`"${clientName}" leave chat with you.\nYou can add him again by typing $chat ${clientName}\nYou cant send messages to him until you add him to private chat.\n`)
+        }
+      }
     } catch (error: unknown) {
       this.logger.error(
         `${traceId}: `,
@@ -262,6 +284,7 @@ export class ChatService implements IChatService {
         `Sending message to all users for user ${clientName}`
       )
     for await (const [otherName, otherSocket] of this.onlineClients.entries()) {
+      const sendTime = new Date()
       if (otherName !== clientName) {
         otherSocket.write(`[${clientName} -> ALL]: ${message}\n`)
       }
@@ -271,7 +294,7 @@ export class ChatService implements IChatService {
         null,
         message,
         '$chat',
-        new Date(),
+        sendTime,
         delivered,
         true
       )
@@ -397,6 +420,16 @@ export class ChatService implements IChatService {
       )
     }
   }
+
+  public getNameBoundToSocket(socket: Socket): string | undefined {
+    for (const [key, value] of this.onlineClients.entries()) {
+      if (value === socket) {
+        return key;
+      }
+    }
+    return undefined;
+  }
+
 
    // send help message to user
   public getHelp(socket: Socket, traceId: string): void {

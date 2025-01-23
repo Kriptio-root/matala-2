@@ -11,13 +11,11 @@ import type {
 } from '../interfaces'
 
 import {
-  SERVICE_IDENTIFIER,
+  SERVICE_IDENTIFIER, TMessage,
 } from '../types'
 
 @injectable()
 export class ChatController implements IChatController {
-  private clientName: string | null = null
-
   constructor(
     @inject(SERVICE_IDENTIFIER.IChatService)
     private readonly chatService: IChatService,
@@ -29,13 +27,18 @@ export class ChatController implements IChatController {
     private readonly logger: IPinoLogger,
     @inject(SERVICE_IDENTIFIER.IPipeline)
     private readonly pipeline: IPipeline,
-  ) {
-  }
+  ) {}
 
   // handle incoming connection
   public handleConnection(socket: Socket): void {
     try {
       const traceId = uuidv4()
+        this.logger.info({ traceId: traceId }, 'New connection')
+      /*
+ if socket not bound to username it means we are waiting
+  for the nickname and is the first message from the client
+  in current session
+ */
       if (!this.chatService.checkSocketBinding(socket, traceId)) {
         socket.write('Enter your nickname:\n')
       }
@@ -49,7 +52,7 @@ export class ChatController implements IChatController {
 
       // handle socket end
       socket.on('end', () => {
-        this.onSocketEnd(this.getClientName())
+        this.onSocketEnd(this.chatService.getNameBoundToSocket(socket))
           .catch((error: unknown) => {
             this.logger.error('Error in onSocketEnd:', error)
           })
@@ -57,7 +60,7 @@ export class ChatController implements IChatController {
 
       // if socket is closed, we should also handle it
       socket.on('close', () => {
-        this.onSocketEnd(this.getClientName())
+        this.onSocketEnd(this.chatService.getNameBoundToSocket(socket))
           .catch((error: unknown) => {
             this.logger.error('Error in onSocketClose:', error)
           })
@@ -72,14 +75,6 @@ export class ChatController implements IChatController {
     }
   }
 
-  public setClientName(name: string): void {
-    this.clientName = name
-  }
-
-  public getClientName(): string | null {
-    return this.clientName
-  }
-
   // handle incoming data
   private async onSocketData(
     data: Buffer,
@@ -91,13 +86,16 @@ export class ChatController implements IChatController {
 
       // if input is empty, return
       if (!input) {
+        this.logger.info({ traceId: traceId }, 'Empty input')
+        socket.write('Empty input not accepted')
         return
       }
       /*
-       if clientName is not set, it means we are waiting for the nickname
-       and is the first message from the client
+       if socket not bound to username it means we are waiting
+        for the nickname and is the first message from the client
+        in current session
        */
-      if (!this.clientName) {
+      if (!this.chatService.checkSocketBinding(socket, traceId)) {
         // search for user by nickname in the database
         let user = await this.userService.getUserByName(input)
         if (!user) {
@@ -106,24 +104,25 @@ export class ChatController implements IChatController {
         // set isOnline
         await this.chatService.addOnlineClient(user.nickname, socket, traceId)
 
-        // set clientName in the controller
-        this.clientName = user.nickname
-
         // flush offline messages
-        const offlineMessages = await this.messageService.getOfflineMessages(user.nickname, traceId)
+        const offlineMessages: TMessage[] = await this.messageService.getOfflineMessages(user.nickname, traceId)
         if (offlineMessages.length > 0) {
           socket.write(`You have ${offlineMessages.length.toString()} new messages:\n`)
           await this.pipeline.pipelineOfflineMessages(offlineMessages, socket, traceId)
           await this.messageService.markMessagesDelivered(user.nickname, traceId)
+        } else {
+            socket.write('No new offline messages\n')
         }
+        this.chatService.getHelp(socket, traceId)
         return
       }
       /*
-      if clientName is set, it means we are waiting for the message or
+      if socket is bound, it means we are waiting for the message or
       command from the client
       */
-      this.logger.info({ traceId: traceId, clientName: this.clientName, input: input }, 'Incoming message')
-      await this.chatService.handleIncomingMessage(this.clientName, input, socket, traceId)
+      const clientName = this.chatService.getNameBoundToSocket(socket)
+      this.logger.info({ traceId: traceId, clientName: clientName, input: input }, 'Incoming message')
+      await this.chatService.handleIncomingMessage(clientName!, input, socket, traceId)
     } catch (error: unknown) {
       this.logger.error('Error in onSocketData:', error)
       this.handleConnection(socket)
@@ -131,7 +130,7 @@ export class ChatController implements IChatController {
 }
   }
 
-  private async onSocketEnd(clientName: string | null): Promise<void> {
+  private async onSocketEnd(clientName: string | undefined): Promise<void> {
     if (clientName) {
       this.logger.info(`Client ${clientName} disconnected`)
       await this.chatService.handleClientDisconnect(clientName)

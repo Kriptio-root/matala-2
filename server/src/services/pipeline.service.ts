@@ -3,8 +3,8 @@ import { Readable } from 'stream'
 import type { Socket } from 'net'
 
 import type {
-  IOfflineMessageTransform,
-  IHistoryMessageTransform,
+  IOfflineMessageTransformFactory,
+  IHistoryMessageTransformFactory,
   IPinoLogger,
   IPipeline,
 } from '../interfaces'
@@ -18,10 +18,10 @@ export class Pipeline implements IPipeline {
   constructor(
     @inject(SERVICE_IDENTIFIER.IPinoLogger)
     private readonly logger: IPinoLogger,
-    @inject(SERVICE_IDENTIFIER.IOfflineMessageTransform)
-    private readonly offlineTransform: IOfflineMessageTransform,
-    @inject(SERVICE_IDENTIFIER.IHistoryMessageTransform)
-    private readonly historyTransform: IHistoryMessageTransform,
+    @inject(SERVICE_IDENTIFIER.IOfflineMessageTransformFactory)
+    private readonly offlineTransform: IOfflineMessageTransformFactory,
+    @inject(SERVICE_IDENTIFIER.IHistoryMessageTransformFactory)
+    private readonly historyTransform: IHistoryMessageTransformFactory,
   ) {}
 
   /**
@@ -38,7 +38,7 @@ export class Pipeline implements IPipeline {
 
       // pipe all to socket (end: false — we will close socket manually)
       source
-        .pipe(this.offlineTransform)
+        .pipe(this.offlineTransform.create())
         .pipe(socket, { end: false })
 
       // when all chunks sended
@@ -72,7 +72,7 @@ export class Pipeline implements IPipeline {
 
       // pipe all to socket (end: false — we will close socket manually)
       source
-        .pipe(this.historyTransform)
+        .pipe(this.historyTransform.create())
         .pipe(socket, { end: false })
 
       // when all chunks sended
