@@ -10,37 +10,37 @@ import {SERVICE_IDENTIFIER, TUserFromDb} from '../types'
 
 /**
  * ChatService
- * - Хранит onlineClients: Map<nickname, Socket> (для прямого доступа к сокетам).
- * - Хранит activeChats:   Map<nickname, Set<nickname>> (список собеседников).
- * - Реализует команды: $chat, $exit, $chats, $all, $help
- * - Любой «не-командный» текст рассылается всем собеседникам из activeChats.
+ * - onlineClients contains: Map<nickname, Socket> (for direct access to
+ * sockets).
+ * - activeChats contains:   Map<nickname, Set<nickname>> (for directs
+ * access to active user chats).
+ * - class implements: $chat, $exit, $chats, $all, $help commands
+ * - every non command message will be send to partners in activeChats.
  */
 @injectable()
 export class ChatService implements IChatService {
-  // кто сейчас онлайн (nickname -> Socket)
+  // who online now + socket (nickname -> Socket)
   private onlineClients = new Map<string, Socket>()
 
-  // кто с кем в «активном» чате (nickname -> Set<partnerName>)
+  // active chat relations between users (nickname -> Set<partnerName>)
   private activeChats = new Map<string, Set<string>>()
 
   constructor(
     @inject(SERVICE_IDENTIFIER.IUserService)
-    private userService: IUserService, // для setUserOnline/offline и т.п.
+    private userService: IUserService,
     @inject(SERVICE_IDENTIFIER.IPinoLogger)
     private readonly logger: IPinoLogger,
   ) {}
 
-  /**
-   * Обработка входящего сообщения (команда или обычный текст).
-   */
+   // handle incoming message or command.
   public async handleIncomingMessage(
     clientName: string,
     message: string,
     socket: Socket,
   ): Promise<void> {
-    // Если начинается с '$', это команда
+    // if message starts with $, it is command
     if (message.startsWith('$')) {
-      // Пример: $chat Bob
+      // example: $chat Bob
       if (message.startsWith('$chat ')) {
         const parts = message.split(' ')
         const targetName = parts[1]
@@ -48,7 +48,7 @@ export class ChatService implements IChatService {
         return
       }
 
-      // Пример: $exit Bob
+      // example: $exit Bob
       if (message.startsWith('$exit ')) {
         const parts = message.split(' ')
         const targetName = parts[1]
@@ -56,61 +56,60 @@ export class ChatService implements IChatService {
         return
       }
 
-      // Пример: $chats — вывести всех «активных» партнёров
+      // example: $chats — get list of active chats
       if (message === '$chats') {
         this.listActiveChats(clientName, socket)
         return
       }
 
-      // Пример: $chats — вывести всех онлайн-пользователей
+      // example: $chats — get list of online users
       if (message === '$list') {
        await this.listOnlineUsers(socket)
         return
       }
 
-      // Пример: $all Привет, это всем!
+      // example: $all message - send message to all online users
       if (message.startsWith('$all ')) {
         const text = message.replace('$all ', '')
         await this.sendMessageToAll(clientName, text, socket)
         return
       }
 
-      // Пример: $help
+      // example: $help - show help message
       if (message === '$help') {
         this.getHelp(socket)
         return
       }
 
-      // иначе команда не распознана
-      socket.write('Неизвестная команда. Введите $help для справки\n')
+      // else - unknown command
+      socket.write('Unknown command. Enter $help to get help message\n')
       return
     }
-
-    // Если это не команда, то это обычное сообщение
-    // Рассылаем ВСЕМ собеседникам, кто записан в activeChats[clientName].
+    /*
+    if message is not a command, handle it as a regular message
+    send message in broadcast to all users in activeChats[clientName].
+     */
     const setOfChats = this.activeChats.get(clientName)
     if (!setOfChats || setOfChats.size === 0) {
-      socket.write('У вас нет активных собеседников. Используйте $chat <nick> или $help\n')
+      socket.write('you dont have active chats. Send $chat <nick> or $help\n')
       return
     }
 
-    // Отправляем «message» всем собеседникам
+    // send message to all active chats
     for await (const targetName of setOfChats) {
       await this.sendPrivateMessage(clientName, targetName, message)
     }
   }
 
-  /**
-   * Когда пользователь отключается (socket.end)
-   */
+   // handle user disconnect (socket.end)
   public async handleClientDisconnect(clientName: string): Promise<void> {
-    // ставим offline в БД
+    // set offline status in db
     await this.userService.setUserOffline(clientName)
 
-    // убираем из onlineClients
+    // remove from onlineClients
     this.onlineClients.delete(clientName)
 
-    // убираем все связи из activeChats
+    // remove all relations from activeChats
     this.activeChats.delete(clientName)
     for (const [_user, setOfPartners] of this.activeChats.entries()) {
       if (setOfPartners.has(clientName)) {
@@ -121,13 +120,10 @@ export class ChatService implements IChatService {
     this.logger.info(`User ${clientName} disconnected, set offline, removed from activeChats`)
   }
 
-  /**
-   * Пользователь зашёл онлайн: сохраним его в memory (map).
-   */
+   //handle user connect,set him to memory (onlineClients).
   public async addOnlineClient(clientName: string, socket: Socket): Promise<void> {
     try {
     this.onlineClients.set(clientName, socket)
-    // Можно userService.setUserOnline(clientName) async
     await this.userService.setUserOnline(clientName)
     } catch (error: unknown) {
       this.logger.error(`Error setting user ${clientName} online: `, error)
@@ -135,48 +131,42 @@ export class ChatService implements IChatService {
     this.logger.info(`User ${clientName} is now online (socket saved)`)
   }
 
-  /**
-   * Добавить «активного» собеседника (private chat).
-   */
+   // add active user to private chat.
   public addChatPartner(clientName: string, targetName: string, socket: Socket): void {
     if (!this.activeChats.has(clientName)) {
       this.activeChats.set(clientName, new Set())
     }
     this.activeChats.get(clientName)!.add(targetName)
-    socket.write(`Вы начали чат с "${targetName}". Теперь ваши сообщения идут только ему.\n`)
+    socket.write(`You started chat with "${targetName}". Now he will get directly your messages.\n`)
   }
 
-  /**
-   * Убрать «активного» собеседника.
-   */
+
+   // remove active user from chat.
   public removeChatPartner(clientName: string, targetName: string, socket: Socket): void {
     const setOfPartners = this.activeChats.get(clientName)
     if (!setOfPartners?.has(targetName)) {
-      socket.write(`У вас нет собеседника "${targetName}" в активном чате.\n`)
+      socket.write(`You dont have this user "${targetName}" in active chat.\n`)
       return
     }
     setOfPartners.delete(targetName)
-    socket.write(`Вы вышли из чата с "${targetName}".\n`)
+    socket.write(`You leave chat with "${targetName}".\n`)
   }
 
-  /**
-   * Показать всех собеседников (private chat partners) текущего пользователя.
-   */
+
+   // show all partners in  private chat for current user
   public listActiveChats(clientName: string, socket: Socket): void {
     const setOfPartners = this.activeChats.get(clientName)
     if (!setOfPartners || setOfPartners.size === 0) {
-      socket.write('У вас нет активных чатов.\n')
+      socket.write('You dont have active chats.\n')
       return
     }
-    socket.write('Ваши собеседники:\n')
+    socket.write('Your chat partners:\n')
     for (const partner of setOfPartners) {
       socket.write(` - ${partner}\n`)
     }
   }
 
-  /**
-   * Отправить сообщение всем онлайн-пользователям (broadcast).
-   */
+   // send message to all online clients (broadcast).
   public async sendMessageToAll(clientName: string, message: string, socket: Socket): Promise<void> {
     // Высылаем всем, кто онлайн, кроме самого отправителя
     for await (const [otherName, otherSocket] of this.onlineClients.entries()) {
@@ -184,20 +174,20 @@ export class ChatService implements IChatService {
         otherSocket.write(`[${clientName} -> ALL]: ${message}\n`)
       }
     }
-    socket.write('(Отправлено всем онлайн-юзерам)\n')
+    socket.write('(Message send to all online users)\n')
   }
 
   /**
-   * Отправить приватное сообщение (clientName -> targetName).
-   * Если targetName онлайн, передаём сразу по socket.
-   * Иначе — офлайн: сохранить в БД через messageService (зависит от архитектуры).
+   * send private message (clientName -> targetName).
+   * if targetName is online, send direct to socket.
+   * else user is offline: save to db to send later.
    */
   public async sendPrivateMessage(clientName: string, targetName: string, text: string): Promise<void> {
     const targetSocket = this.onlineClients.get(targetName)
     if (targetSocket) {
       targetSocket.write(`[${clientName} -> ${targetName}]: ${text}\n`)
     } else {
-      // пользователь офлайн => сохранить офлайн
+      // user is offline save message to db
       this.logger.info(`User ${targetName} is offline; message stored offline (not shown here).`)
       // Тут можно вызвать messageService.saveMessage({ from: clientName, to: targetName, text, ... })
     }
@@ -213,27 +203,26 @@ export class ChatService implements IChatService {
     }
   }
 
+
+  // check if socket is binded to user
   public checkSocketBinding(socket: Socket): boolean {
-    // Преобразуем значения Map (сокеты) в массив и ищем совпадение
     return Array.from(this.onlineClients.values()).some(
       (sock) => sock === socket
     )
   }
 
-  /**
-   * Вывести подсказку (help)
-   */
+   // send help message to user
   public getHelp(socket: Socket): void {
     socket.write(`
-*** ДОСТУПНЫЕ КОМАНДЫ ***
-$chat <nickname>  - добавить собеседника <nickname>
-$exit <nickname>  - убрать собеседника <nickname>
-$chats           - показать список активных собеседников
-$list            - (если реализовали) показать всех онлайн-пользователей
-$all <text>      - отправить сообщение всем
-$help           - показать эту справку
+*** AVAILABLE COMMANDS ***
+$chat <nickname>  - add partner <nickname>
+$exit <nickname>  - remove partner <nickname>
+$chats           - show list of active chats
+$list            - show list of online users
+$all <text>      - send message to all online users
+$help           - show this help message
 
-Обычное текстовое сообщение (без $) уйдёт всем вашим активным собеседникам.
+all commands starts with '$' symbol, messages without '$' will sen to active chat or to all users in broadcast.
 -----------------------------
 `)
   }

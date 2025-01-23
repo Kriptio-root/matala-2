@@ -21,7 +21,6 @@
     <button id="sendBtn">Send</button>
 </div>
 
-<!-- Подключаем скрипт. Будем использовать ipcRenderer. -->
 <script>
   const { ipcRenderer } = window.require('electron');
 
@@ -40,7 +39,7 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  // Клик "Connect"
+  // click on Connect
   connectBtn.addEventListener('click', () => {
     const host = hostEl.value;
     const port = parseInt(portEl.value, 10) || 3003;
@@ -48,7 +47,7 @@
     addMessage(`[Client] Connecting to ${host}:${port}...`, 'client-msg');
   });
 
-  // Клик "Send"
+  // click on Send
   sendBtn.addEventListener('click', () => {
     const text = inputTextEl.value.trim();
     if (!text) return;
@@ -58,12 +57,12 @@
     inputTextEl.focus();
   });
 
-  // Пришло сообщение от main.ts
+  // got message from server
   ipcRenderer.on('chat-message', (event, msg) => {
     addMessage(`[Server]: ${msg}`, 'server-msg');
   });
 
-  // Пришло системное сообщение (ошибки и т.д.)
+  // got system message
   ipcRenderer.on('system-message', (event, msg) => {
     addMessage(`[System]: ${msg}`, 'system-msg');
   });

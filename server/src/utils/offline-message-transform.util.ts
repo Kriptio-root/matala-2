@@ -5,28 +5,30 @@ import { Transform } from 'stream'
 import type { IOfflineMessageTransform } from '../interfaces'
 import type { TMessage } from '../types'
 
-// Этот класс преобразует каждый объект TOfflineMessage в текст
+// this object transforms TOfflineMessage object to text message
 @injectable()
 export class OfflineMessageTransform extends Transform implements IOfflineMessageTransform {
   public constructor() {
-    // Включаем objectMode, так как будет приходить объект (TOfflineMessage)
+    // enable objectMode, to handle TOfflineMessage object
     super({ objectMode: true })
   }
 
-  // chunk: один офлайн-месседж (TOfflineMessage)
-  // enc: кодировка (для objectMode не особо важна)
-  // callback: вызываем, когда закончили обработку
+  /*
+  chunk: one offline message object TOfflineMessage
+   enc: encoding no important for object mode
+   callback: call when chunk is processed
+  */
   // eslint-disable-next-line no-underscore-dangle
   public override _transform(
     chunk: TMessage,
     _encoding: BufferEncoding,
     callback: TransformCallback,
   ): void {
-    // Формируем строку
+    // format message
     const formatted = `[OFFLINE от ${chunk.from}]: ${chunk.text}\n`
-    // Передаём дальше (в следующий поток)
+    // transfer message to next stream
     this.push(formatted)
-    // Сигнализируем, что всё ок
+    // signal that chunk is processed
     callback()
   }
 }

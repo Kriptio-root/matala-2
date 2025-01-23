@@ -12,28 +12,28 @@ datasource db {
 
 model User {
   id        Int      @id @default(autoincrement())
-  // уникальное имя пользователя, служит для идентификации.
+  // unique nickname used for indification.
   nickname  String   @unique
-  // флаг онлайн/офлайн.
+  // flag online/offline.
   isOnline  Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  // Сессии (когда пользователь заходит, мы можем создавать Session).
-  sessions Session[] // связь "один-ко-многим"
+  // Sessions, created when user connected.
+  sessions Session[] // relation one to many
 
-  // Сообщения, которые пользователь отправил
+  // Messages, sent by user.
   messagesSent Message[] @relation("SentMessages")
 
-  // Сообщения, которые пользователь получил
+  // Messages, received by user.
   messagesReceived Message[] @relation("ReceivedMessages")
 }
 
 model Session {
   id        Int      @id @default(autoincrement())
-  socketId  String? // хранит какой-то идентификатор сокета (можно GUID, можно string)
+  socketId  String? // socket unique id
   createdAt DateTime @default(now())
 
-  // Связь с User
+  // relation to user
   nickname String
   user     User   @relation(fields: [nickname], references: [nickname])
 }
@@ -45,11 +45,11 @@ model Message {
   createdAt   DateTime @default(now())
   isDelivered Boolean  @default(false)
 
-  // Кто отправил сообщение
+  // who sent the message
   fromUserNickname String
   fromUser         User   @relation("SentMessages", fields: [fromUserNickname], references: [nickname])
 
-  // Кто получатель
+  // to whom the message is sent
   toUserNickname String?
   toUser         User?   @relation("ReceivedMessages", fields: [toUserNickname], references: [nickname])
   public         Boolean @default(true)

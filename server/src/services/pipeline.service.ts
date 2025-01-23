@@ -20,8 +20,7 @@ export class Pipeline implements IPipeline {
   ) {}
 
   /**
-   * Передать массив офлайн-сообщений (TOfflineMessage[]) в сокет (Socket)
-   * с помощью конвейера (pipeline) и backpressure.
+   * send array of offline messages to the client using pipeline and backpressure
    */
   public pipelineOfflineMessages(
     messages: TMessage[],
@@ -29,15 +28,15 @@ export class Pipeline implements IPipeline {
     traceId: string,
   ): Promise<void> | never {
     return new Promise((resolve, reject) => {
-      // 1) Создаём Readable stream из массива (каждый элемент => отдельный chunk)
+      // create readable stream from array (each element => another chunk)
       const source: Readable = Readable.from(messages, { objectMode: true })
 
-      // 3) Пайпим всё в socket (end: false — чтобы не закрывать сокет)
+      // pipe all to socket (end: false — we will close socket manually)
       source
         .pipe(this.transform)
         .pipe(socket, { end: false })
 
-      // Когда все chunks прочитаны
+      // when all chunks sended
       source.on('end', () => {
         this.logger.info(
           { traceId: traceId },
@@ -46,7 +45,7 @@ export class Pipeline implements IPipeline {
         resolve()
       })
 
-      // Если в процессе чтения возникла ошибка
+      // if error in pipeline
       source.on('error', (err) => {
         this.logger.error(
           `Error: ${err.message}, traceId: ${traceId}`,

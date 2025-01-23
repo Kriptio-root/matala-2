@@ -44,7 +44,7 @@ try {
   }
 
   public async getMessagesHistory(fromName: string, toName: string): Promise<TMessage[]> {
-    // 1) Достаём из БД список "Message"
+    // get messages from db
     const messages = await this.prismaClient.message.findMany({
       where: {
         OR: [
@@ -55,10 +55,10 @@ try {
       orderBy: { createdAt: 'asc' },
     })
 
-    // 2) Преобразуем каждую запись в TMessage
-    //    Каждый элемент map -> один TMessage, а не массив
+    // transform db messages to TMessage
+    //    each db message is transformed to TMessage
     return messages.map((dbMessage): TMessage => {
-      // Соберём объект типа TMessage
+      // assemble TMessage object
       const message: TMessage = {
         messageId: dbMessage.id,
         text: dbMessage.text,
@@ -74,7 +74,7 @@ try {
   }
 
   public async getOfflineMessages(toName: string): Promise<TMessage[]> {
-    // 1) Достаём из БД список "Message"
+    //  get messages from db
     const messages = await this.prismaClient.message.findMany({
       where: {
         toUserNickname: toName,
@@ -84,7 +84,7 @@ try {
     })
 
     return messages.map((dbMessage): TMessage => {
-      // Соберём объект типа TMessage
+      // assemble TMessage object
       const message: TMessage = {
         messageId: dbMessage.id,
         text: dbMessage.text,

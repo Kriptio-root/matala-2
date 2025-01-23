@@ -74,11 +74,9 @@ if (user) {
     }
   }
 
-  // Отметить, что пользователь offline
   public async setUserOffline(nickname: string): Promise<void> {
     try {
     const user:TUserFromDb | null = await this.findUnique(nickname)
-    // Обновляем isOnline = false
       if (user) {
     await this.prismaClient.user.update({
       where: { nickname: user.nickname },
@@ -93,9 +91,9 @@ if (user) {
     }
   }
 
+  // create new user
   public async create(nickname: string): Promise<TUserFromDb> {
     try {
-      // Создаём нового
      const newUser: TUserFromDb = await this.prismaClient.user.create({
         data: {
           nickname: nickname,

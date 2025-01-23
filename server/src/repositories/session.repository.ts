@@ -26,9 +26,9 @@ export class SessionRepository implements ISessionRepository {
 
   public async createSession(nickname: string, socketId: string):Promise<void> {
     try {
-    // Находим пользователя
+    // search user by nickname
     const user: TUserFromDb | null = await this.userRepository.findUnique(nickname)
-    // Создаём запись сессии
+    // create session
       if (user) {
     await this.prismaClient.session.create({
       data: {

@@ -1,20 +1,19 @@
-// src/index.ts
 import 'reflect-metadata'
 import { container } from './configuration'
 import type { IServer, IUserRepository } from './interfaces'
 import { SERVICE_IDENTIFIER } from './types'
 
 async function main() {
-  // Получаем наш сервер из контейнера
+  // get the server instance from the DI container
   const server = container.get<IServer>(SERVICE_IDENTIFIER.IServer)
 
-  // Получаем UserRepository (или UserService), где есть метод setAllUsersOffline()
+  // get UserRepository instance from the DI container
   const userRepository = container.get<IUserRepository>(SERVICE_IDENTIFIER.IUserRepository)
 
-  // Сбрасываем всех пользователей в офлайн
+  // set all users offline
   await userRepository.setAllUsersOffline()
 
-  // Теперь запускаем сервер
+  // start the server
   server.start()
 }
 

@@ -66,17 +66,18 @@ function sendMessageToServer(text: string): void {
   }
 }
 
-//
-// 1) Ждём app.whenReady()
-// 2) Потом вызываем createWindow()
-// 3) Потом настраиваем IPC
-// 4) Если где-то ошибка -> catch
-//
+/*
+// 1) Waiting fot app.whenReady()
+// 2) Then call createWindow()
+// 3) Then configure IPC
+// 4) On error -> catch
+*/
+
 app
   .whenReady()
   .then(() => createWindow())
   .then(() => {
-    // Когда окно создано, настраиваем IPC
+    // When window is created, configuring IPC
     ipcMain.on(
       'connect-to-server',
       (_event: IpcMainEvent, payload: { host: string; port: number }) => {

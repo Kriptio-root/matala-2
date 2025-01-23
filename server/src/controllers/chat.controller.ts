@@ -1,15 +1,3 @@
-/*
-Присваиваем каждому пакету данных traceId (через uuid) для логирования.
-При первом сообщении от socket трактуем строку как имя пользователя.
-Проверяем по никнейму, есть ли пользователь в базе, если нет — создаём.
-При входе в чат уведомляем пользователя о непрочитанных сообщениях.
-Затем через pipelineOfflineMessages передаём offline-сообщения, обеспечивая backpressure.
-После отправки сообщений помечаем их как доставленные.
-При входе в общий чат отправляем через pipelineCommonHistory передаём
- историю общих сообщений обеспечивая backpressure.
- При входе в приватный чат отправляем через pipelinePrivateHistory передаём историю приватных сообщений обеспечивая backpressure.
- */
-// src/controllers/chat.controller.ts
 import { injectable, inject } from 'inversify'
 import { Socket } from 'net'
 import { v4 as uuidv4 } from 'uuid'
@@ -44,9 +32,7 @@ export class ChatController implements IChatController {
   ) {
   }
 
-  /**
-   * Обработать новое подключение (socket)
-   */
+  // handle incoming connection
   public handleConnection(socket: Socket): void {
     try {
       if (!this.chatService.checkSocketBinding(socket)) {
@@ -60,6 +46,7 @@ export class ChatController implements IChatController {
           })
       })
 
+      // handle socket end
       socket.on('end', () => {
         this.onSocketEnd(this.getClientName())
           .catch((error: unknown) => {
@@ -67,14 +54,15 @@ export class ChatController implements IChatController {
           })
       })
 
+      // if socket is closed, we should also handle it
       socket.on('close', () => {
-        // На случай, если 'end' не сработал
         this.onSocketEnd(this.getClientName())
           .catch((error: unknown) => {
             this.logger.error('Error in onSocketClose:', error)
           })
       })
 
+      // handle socket errors
       socket.on('error', (error) => {
         this.logger.error(`Socket error: ${error.message}`)
       })
@@ -91,7 +79,7 @@ export class ChatController implements IChatController {
     return this.clientName
   }
 
-// "приватный" метод
+  // handle incoming data
   private async onSocketData(
     data: Buffer,
     socket: Socket,
@@ -100,30 +88,39 @@ export class ChatController implements IChatController {
       const input = data.toString().trim()
       const traceId = uuidv4()
 
-      // 1. Если мы ещё НЕ знаем clientName => трактуем input как nickname
+      // if input is empty, return
+      if (!input) {
+        return
+      }
+      /*
+       if clientName is not set, it means we are waiting for the nickname
+       and is the first message from the client
+       */
       if (!this.clientName) {
-        // Ищем пользователя в БД
+        // search for user by nickname in the database
         let user = await this.userService.getUserByName(input)
         if (!user) {
           user = await this.userService.createUser(input)
         }
-        // Ставим isOnline
+        // set isOnline
         await this.chatService.addOnlineClient(user.nickname, socket)
 
-        // Запоминаем локально
+        // set clientName in the controller
         this.clientName = user.nickname
 
-        // Выдаём офлайн-сообщения
+        // flush offline messages
         const offlineMessages = await this.messageService.getOfflineMessages(user.nickname)
         if (offlineMessages.length > 0) {
-          socket.write(`У вас ${offlineMessages.length.toString()} непрочитанных сообщений:\n`)
+          socket.write(`You have ${offlineMessages.length.toString()} new messages:\n`)
           await this.pipeline.pipelineOfflineMessages(offlineMessages, socket, traceId)
           await this.messageService.markMessagesDelivered(user.nickname)
         }
         return
       }
-
-      // 2. Иначе (clientName уже есть) => это обычное сообщение/команда
+      /*
+      if clientName is set, it means we are waiting for the message or
+      command from the client
+      */
       this.logger.info({ traceId: traceId, clientName: this.clientName, input: input }, 'Incoming message')
       await this.chatService.handleIncomingMessage(this.clientName, input, socket)
     } catch (error: unknown) {

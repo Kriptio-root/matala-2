@@ -1,4 +1,3 @@
-// src/server.ts
 import {
   inject,
   injectable,
@@ -34,12 +33,10 @@ export class TcpServer implements IServer {
     @inject(SERVICE_IDENTIFIER.IPinoLogger)
     private readonly logger: IPinoLogger,
   ) {
-    // Берём порт из TConfiguration (например, serverPort = 3000)
     this.port = this.configuration.serverPort
-
-    // Создаём TCP-сервер (net.createServer)
+    // create TCP server
     this.server = createServer((socket: Socket) => {
-      // Пробрасываем соединение в chatController
+      // transfer connection to chat controller
       this.chatController.handleConnection(socket)
     })
   }
