@@ -6,4 +6,5 @@ export interface IUserService {
   getUserByName(name: string): Promise<TUserFromDb | undefined>
   setUserOnline(name: string): Promise<void>
   setUserOffline(name: string): Promise<void>
+  updateUserLastRecivedPublicMessageTime(name: string, newDate: Date): Promise<void>
 }

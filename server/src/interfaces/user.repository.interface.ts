@@ -7,4 +7,5 @@ export interface IUserRepository {
   setUserOffline(nickname: string): Promise<void>
   setAllUsersOffline(): Promise<void>
   create(nickname: string): Promise<TUserFromDb>
+  updateLastRecivedPublicMessageTime(nickname: string, newDate: Date): Promise<void>
 }

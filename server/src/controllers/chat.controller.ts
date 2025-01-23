@@ -103,17 +103,27 @@ export class ChatController implements IChatController {
         }
         // set isOnline
         await this.chatService.addOnlineClient(user.nickname, socket, traceId)
-
-        // flush offline messages
-        const offlineMessages: TMessage[] = await this.messageService.getOfflineMessages(user.nickname, traceId)
-        if (offlineMessages.length > 0) {
-          socket.write(`You have ${offlineMessages.length.toString()} new messages:\n`)
-          await this.pipeline.pipelineOfflineMessages(offlineMessages, socket, traceId)
+        this.chatService.getHelp(socket, traceId)
+        // flush private offline messages
+        const privateOfflineMessages: TMessage[] = await this.messageService.getOfflineMessages(user.nickname, traceId)
+        if (privateOfflineMessages.length > 0) {
+          socket.write(`You have ${privateOfflineMessages.length.toString()} new private messages:\n`)
+          await this.pipeline.pipelineOfflineMessages(privateOfflineMessages, socket, traceId)
           await this.messageService.markMessagesDelivered(user.nickname, traceId)
         } else {
-            socket.write('No new offline messages\n')
+            socket.write('No new private offline messages\n')
         }
-        this.chatService.getHelp(socket, traceId)
+
+        // flush public offline messages
+        const publicOfflineMessages: TMessage[] = await this.messageService.getPublicOfflineMessages(user, traceId)
+        if (publicOfflineMessages.length > 0) {
+          socket.write(`You have ${publicOfflineMessages.length.toString()} new public messages:\n`)
+          await this.pipeline.pipelineOfflineMessages(publicOfflineMessages, socket, traceId)
+          await this.userService.updateUserLastRecivedPublicMessageTime(user.nickname, new Date())
+        } else {
+          socket.write('No new public offline messages\n')
+        }
+
         return
       }
       /*

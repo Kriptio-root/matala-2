@@ -106,4 +106,28 @@ if (user) {
         throw new Error('User not created')
       }
   }
+
+  public async updateLastRecivedPublicMessageTime(nickname: string, newDate: Date): Promise<void> {
+    try {
+    const user: TUserFromDb | null = await this.findUnique(nickname)
+      if (user) {
+        await this.prismaClient.user.updateMany({
+          where: {
+            AND: [
+              {
+                nickname: user.nickname,
+            OR: [
+              { lastRecivedPublicMessage: { lt: newDate } },
+              { lastRecivedPublicMessage: null },
+            ] }] },
+          data: { lastRecivedPublicMessage: newDate },
+        }) } else {
+        console.log('User not found')
+        throw new Error('User not found')
+      }
+    } catch (error) {
+      console.log('User not found')
+      throw new Error('User not found')
+    }
+  }
 }

@@ -3,4 +3,5 @@ export type TUserFromDb = {
   nickname: string
   isOnline: boolean
   createdAt: Date
+  lastRecivedPublicMessage: Date | null
 }

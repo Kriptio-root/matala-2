@@ -21,6 +21,8 @@ model User {
   // Sessions, created when user connected.
   sessions Session[] // relation one to many
 
+  lastRecivedPublicMessage DateTime?
+
   // Messages, sent by user.
   messagesSent Message[] @relation("SentMessages")
 

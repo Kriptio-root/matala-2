@@ -55,4 +55,8 @@ export class UserService implements IUserService {
     const onlineUsers: TUserFromDb[] | null = await this.userRepository.findOnlineUsers()
     return onlineUsers
   }
+
+  public async updateUserLastRecivedPublicMessageTime(name: string, newDate: Date): Promise<void> {
+    await this.userRepository.updateLastRecivedPublicMessageTime(name, newDate)
+  }
 }

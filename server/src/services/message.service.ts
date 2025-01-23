@@ -7,7 +7,7 @@ import type {
   IErrorWithoutAdditionalHandling,
 } from '../interfaces'
 
-import type { TMessage, TMessageConstants } from '../types'
+import type { TMessage, TMessageConstants, TUserFromDb } from '../types'
 
 import { SERVICE_IDENTIFIER } from '../types'
 
@@ -118,5 +118,30 @@ public constructor(
       public: isPublic,
     }
    return message
+  }
+
+  public async getPublicOfflineMessages(user: TUserFromDb, traceId: string): Promise<TMessage[]> {
+    try {
+      let searchDate: Date = new Date(0)
+      this.logger.info(
+        { traceId: traceId },
+        `Getting public offline messages for user: ${user.nickname}`,
+      )
+      if (user.lastRecivedPublicMessage) {
+        searchDate = user.lastRecivedPublicMessage
+      }
+      const publicOfflineMessages: TMessage[] = await this.messageRepository.filterUnseenPublicMessages(user.nickname, searchDate)
+      return publicOfflineMessages
+    } catch (error) {
+      this.logger.error(
+        `${traceId}: `,
+        `Error getting public offline messages for user: ${user.nickname}`,
+        error,
+      )
+      this.errorWithoutAdditionalHandling.throw(
+        'Failed to get public offline messages',
+        error,
+      )
+    }
   }
 }

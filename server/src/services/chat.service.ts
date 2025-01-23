@@ -287,6 +287,7 @@ export class ChatService implements IChatService {
       const sendTime = new Date()
       if (otherName !== clientName) {
         otherSocket.write(`[${clientName} -> ALL]: ${message}\n`)
+      await  this.userService.updateUserLastRecivedPublicMessageTime(otherName, sendTime)
       }
       const messageToSave: TMessage = this.messageService.composeMessageObject(
         traceId,

@@ -1,4 +1,4 @@
-import type { TMessage } from '../types'
+import type { TMessage, TUserFromDb } from '../types'
 
 export interface IMessageService {
   saveMessage(message: TMessage): Promise<void>
@@ -15,4 +15,5 @@ export interface IMessageService {
     isDelivered: boolean,
     isPublic: boolean,
   ): TMessage
+  getPublicOfflineMessages(user: TUserFromDb, traceId: string): Promise<TMessage[]>
 }

@@ -110,4 +110,31 @@ try {
       },
     })
   }
+
+  public async filterUnseenPublicMessages(nickname: string, lastUpdate: Date): Promise<TMessage[]> {
+    const messages = await this.prismaClient.message.findMany({
+      where: {
+        public: true,
+        createdAt: { gt: lastUpdate },
+        fromUserNickname: {
+          not: nickname,
+        },
+      },
+    })
+
+    return messages.map((dbMessage): TMessage => {
+      // assemble TMessage object
+      const message: TMessage = {
+        messageId: dbMessage.id,
+        text: dbMessage.text,
+        command: dbMessage.command,
+        createdAt: dbMessage.createdAt,
+        to: dbMessage.toUserNickname ? dbMessage.toUserNickname : null,
+        from: dbMessage.fromUserNickname,
+        isDelivered: dbMessage.isDelivered,
+        public: dbMessage.public,
+      }
+      return message
+    })
+  }
 }

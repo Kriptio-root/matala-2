@@ -5,4 +5,5 @@ export interface IMessageRepository {
   getMessagesHistory(fromName: string, toName: string): Promise<TMessage[]>
   getOfflineMessages(toName: string): Promise<TMessage[]>
   markMessagesDelivered(toName: string): Promise<void>
+  filterUnseenPublicMessages(nickname: string, lastUpdate: Date): Promise<TMessage[]>
 }
