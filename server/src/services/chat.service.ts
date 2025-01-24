@@ -100,6 +100,15 @@ export class ChatService implements IChatService {
         return
       }
 
+      // example: $offline Kostya text - send offline message to user Kostya
+      if (message.startsWith('$offline')) {
+        const parts = message.split(' ')
+        const targetName = parts[1]
+        const text = message.replace(`$offline ${targetName} `, '')
+        await this.handleOfflineMessage(clientName, targetName, text, socket, traceId)
+        return
+      }
+
       // else - unknown command
       socket.write('Unknown command. Enter $help to get help message\n')
       return
@@ -323,7 +332,7 @@ export class ChatService implements IChatService {
    */
   public async sendPrivateMessage(clientName: string, targetName: string, text: string, traceId: string): Promise<void> {
     try{
-      let delivered = false
+      let delivered: boolean
       this.logger.info(
         `${traceId}: `,
         `Sending private message from user ${clientName} to ${targetName}`
@@ -429,6 +438,49 @@ export class ChatService implements IChatService {
       }
     }
     return undefined;
+  }
+
+  public async handleOfflineMessage(clientName: string,targetName: string, text: string, socket: Socket, traceId: string): Promise<void> {
+    try {
+        this.logger.info(
+            `${traceId}: `,
+            `Handling offline message for user ${clientName}, to user ${targetName}`
+        )
+      const targetSocket: Socket | undefined = this.onlineClients.get(targetName)
+      if (targetSocket) {
+        await this.addChatPartner(clientName, targetName, socket, traceId)
+        await this.sendPrivateMessage(clientName, targetName, text, traceId)
+        return
+      } else {
+        const targetUser: TUserFromDb | undefined = await this.userService.getUserByName(targetName)
+        if (!targetUser) {
+          socket.write(`User ${targetName} not found\n`)
+          this.errorWithoutAdditionalHandling.throw(
+            this.errors.USER_NOT_FOUND,
+            new Error(`User ${targetName} not found`)
+          )
+        }
+      }
+      const message: TMessage = this.messageService.composeMessageObject(
+        traceId,
+        clientName,
+        targetName,
+        text,
+        '$offline',
+        new Date(),
+        false,
+        false
+      )
+      await this.messageService.saveMessage(message)
+        socket.write(`Message stored offline.User ${targetName} will get it when back online`)
+    } catch (error: unknown) {
+        this.logger.error(
+            `${traceId}: `,
+            `Error handling offline message for user ${clientName}: `,
+            error
+        )
+        return
+    }
   }
 
 

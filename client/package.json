@@ -30,7 +30,6 @@
   },
   "dependencies": {
     "@t3-oss/env-core": "^0.10.1",
-    "chalk": "^5.4.1",
     "dotenv": "^16.3.1",
     "electron": "^34.0.0"
   },
